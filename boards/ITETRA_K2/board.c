@@ -78,6 +78,41 @@ void __early_init(void) {
  * Board-specific initialization code.
  */
 void boardInit(void) {
+	palSetGroupMode(IOPORT1, PIOA_GPS_NRST_MASK |
+				 PIOA_GPS_PIN1_MASK | 
+				 PIOA_WCOM_INT_MASK |
+				 PIOA_PV_PWEN_MASK |
+				 PIOA_LED_GPSACT_MASK,
+				 0,
+				 PAL_MODE_OUTPUT_PUSHPULL);
+	palSetGroupMode(IOPORT1, PIOA_GPS_ANTSTAT_MASK |
+				 PIOA_GPS_SP01_MASK | 
+				 PIOA_GPS_OTKAZ |
+				 PIOA_ALARM_MASK |
+				 PIOA_GPS_PPS_MASK |
+				 PIOA_GPS_POUT1_MASK,
+				 0,
+				 PAL_MODE_INPUT);
+	palSetGroupMode(IOPORT2, PIOB_KF0B_SDAT_MASK |
+				 PIOB_KF0B_SCLK_MASK |
+				 PIOB_KF0B_S4_MASK |
+				 PIOB_KF0B_S3_MASK |
+				 PIOB_KF0B_S1_MASK |
+				 PIOB_KF0B_S2_MASK |
+				 PIOB_KF0B_NMCLR_MASK,
+				 0,
+				 PAL_MODE_OUTPUT_PUSHPULL);
+	/* Should configure to {(1 << 11), AT91C_BASE_PIOB, AT91C_ID_PIOB,
+	 * PIO_OUTPUT_1}, dunno how */
+	palSetPadMode(IOPORT2, PIOB_WLAN_RESET, PAL_MODE_OUTPUT_PUSHPULL);
+	palSetGroupMode(IOPORT2,  PIOB_WLAN_RED_MASK |
+				  PIOB_WLAN_LINK_MASK |
+				  PIOB_WLAN_GREEN_MASK |
+				  PIOB_WLAN_SW0_MASK |
+				  PIOB_KF0B_RXOUT_MASK,
+				  0,
+				  PAL_MODE_INPUT);
+				  
 
 #if 0
   /*

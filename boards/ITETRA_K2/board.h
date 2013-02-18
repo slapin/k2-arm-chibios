@@ -41,7 +41,7 @@
 #include "at91sam7.h"
 
 #define CLK             18432000
-#define MCK             48054857
+#define MCK             60000000
 
 /*
  * Initial I/O setup.
@@ -75,6 +75,63 @@
 #define PIOA_ALARM_MASK		(1 << PIOA_ALARM)
 #define PIOA_PV_PWEN		19
 #define PIOA_PV_PWEN_MASK	(1 << PIOA_PV_PWEN)
+#define PIOA_GPS_PPS		22
+#define PIOA_GPS_PPS_MASK	(1 << PIOA_GPS_PPS)
+#define PIOA_GPS_POUT1		23
+#define PIOA_GPS_POUT1_MASK	(1 << PIOA_GPS_POUT1)
+#define PIOA_LED_GPSACT		29
+#define PIOA_LED_GPSACT_MASK	(1 << PIOA_LED_GPSACT)
+
+#define PIOB_KF0B_SDAT		0
+#define PIOB_KF0B_SDAT_MASK	(1 << PIOB_KF0B_SDAT)
+#define PIOB_KF0B_SCLK		1
+#define PIOB_KF0B_SCLK_MASK	(1 << PIOB_KF0B_SCLK)
+#define PIOB_KF0B_S4		2
+#define PIOB_KF0B_S4_MASK	(1 << PIOB_KF0B_S4)
+#define PIOB_KF0B_S3		3
+#define PIOB_KF0B_S3_MASK	(1 << PIOB_KF0B_S3)
+#define PIOB_KF0B_S1		4
+#define PIOB_KF0B_S1_MASK	(1 << PIOB_KF0B_S1)
+#define PIOB_KF0B_S2		5
+#define PIOB_KF0B_S2_MASK	(1 << PIOB_KF0B_S2)
+#define PIOB_KF0B_NMCLR		8
+#define PIOB_KF0B_NMCLR_MASK	(1 << PIOB_KF0B_NMCLR)
+#define PIOB_WLAN_RED		9
+#define PIOB_WLAN_RED_MASK	(1 << PIOB_WLAN_RED)
+#define PIOB_WLAN_LINK		10
+#define PIOB_WLAN_LINK_MASK	(1 << PIOB_WLAN_LINK)
+#define PIOB_WLAN_RESET		11
+#define PIOB_WLAN_RESET_MASK	(1 << PIOB_WLAN_RESET)
+#define PIOB_WLAN_GREEN		12
+#define PIOB_WLAN_GREEN_MASK	(1 << PIOB_WLAN_GREEN)
+#define PIOB_WLAN_SW0		13
+#define PIOB_WLAN_SW0_MASK	(1 << PIOB_WLAN_SW0)
+#define PIOB_KF0B_RXOUT		21
+#define PIOB_KF0B_RXOUT_MASK	(1 << PIOB_KF0B_RXOUT)
+
+/*
+/// DBGU pins (DTXD and DRXD) definitions.
+#define PINS_DBGU  {0xC0000000, AT91C_BASE_PIOA, AT91C_ID_PIOA, PIO_PERIPH_A, PIO_DEFAULT}
+PIOA, 30, 31, PIO_PERIPH_A
+
+/// USART0 TXD & RXD pins definition.
+#define PINS_USART0  {((1 << 2) | (1 << 3)), AT91C_BASE_PIOA, AT91C_ID_PIOA, PIO_PERIPH_A, PIO_DEFAULT}
+PIOA, 2, 3, PIO_PERIPH_A
+
+/// USART1 TXD & RXD pins definition.
+#define PINS_USART1  {((1 << 7) | (1 << 8)), AT91C_BASE_PIOA, AT91C_ID_PIOA, PIO_PERIPH_A, PIO_DEFAULT}
+PIOA, 7, 8, PIO_PERIPH_A
+
+/// USART2 TXD & RXD pins definition.
+#define PINS_USART2  {((1 << 9) | (1 << 10)), AT91C_BASE_PIOA, AT91C_ID_PIOA, PIO_PERIPH_A, PIO_DEFAULT}
+PIOA, 9, 10, PIO_PERIPH_A
+
+ADC:
+PIOB: 14, 15, 16, 17, 18, 19, 20
+
+I2C:
+PIOA, 0, 1, PIO_PERIPH_A
+*/
 
 /*
  * I/O definitions.

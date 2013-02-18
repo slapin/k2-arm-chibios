@@ -28,14 +28,10 @@ static msg_t Thread1(void *p) {
     (void)p;
     chRegSetThreadName("blinker");
     while (TRUE) {
-        palClearPad(IOPORT1, PIOA_LED1);
+        palClearPad(IOPORT1, PIOA_LED_GPSACT);
         chThdSleepMilliseconds(100);
-        palSetPad(IOPORT1, PIOA_LED1);
+        palSetPad(IOPORT1, PIOA_LED_GPSACT);
         chThdSleepMilliseconds(100);
-        palClearPad(IOPORT1, PIOA_LED2);
-        chThdSleepMilliseconds(100);
-        palSetPad(IOPORT1, PIOA_LED2);
-        chThdSleepMilliseconds(800);
     }
     return 0;
 }
