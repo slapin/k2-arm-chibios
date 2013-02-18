@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -mabi=apcs-gnu
+  USE_OPT = -O2 -ggdb -fno-omit-frame-pointer -mabi=apcs-gnu
 endif
 
 # C specific options here (added to USE_OPT).
@@ -46,14 +46,14 @@ PROJECT = red_board
 
 # Imported source files and paths
 CHIBIOS = ../..
-include board/board.mk
+include $(CHIBIOS)/boards/ITETRA_K2/board.mk
 include $(CHIBIOS)/os/hal/platforms/AT91SAM7/platform.mk
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/ports/GCC/ARM/AT91SAM7/port.mk
 include $(CHIBIOS)/os/kernel/kernel.mk
 
 # Define linker script file here
-LDSCRIPT= board/AT91SAM7A3.ld
+LDSCRIPT= $(CHIBIOS)/boards/ITETRA_K2/AT91SAM7A3.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
