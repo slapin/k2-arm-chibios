@@ -115,7 +115,7 @@ void at91sam7_clock_init(void) {
   while (!(AT91C_BASE_PMC->PMC_SR & AT91C_PMC_MOSCS))
     ;
 
-#if SAM&_PLATFORM == SAM7A3
+#if SAM7_PLATFORM == SAM7A3
   AT91C_BASE_PMC->PMC_PLLR = AT91C_CKGR_USBDIV_1 |
                              AT91C_CKGR_OUT_0 |
 			     (AT91C_CKGR_DIV & 14) |
