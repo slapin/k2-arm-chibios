@@ -23,6 +23,31 @@
 #include "chprintf.h"
 
 static WORKING_AREA(waThread1, 128);
+/* GNSS */
+static const SerialConfig usart1_config = {
+	  115200 /* depends */,
+	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
+	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
+};
+/* PV */
+static const SerialConfig usart2_config = {
+	  115200,
+	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
+	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
+};
+/* SEKOP */
+static const SerialConfig usart3_config = {
+	  115200,
+	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
+	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
+};
+/* DBGU console */
+static const SerialConfig dbgu_config = {
+	  115200,
+	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
+	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
+};
+
 static msg_t Thread1(void *p) {
 
     (void)p;
@@ -52,10 +77,12 @@ int main(void) {
     chSysInit();
 
     /*
-     * Activates the serial driver 1 using the driver default configuration.
+     * Activates the serial driver.
      */
-    sdStart(&SD1, NULL);
-    sdStart(&SD2, NULL);
+    sdStart(&SD1, &usart1_config);
+    sdStart(&SD2, &usart2_config);
+    sdStart(&SD3, &usart3_config);
+    sdStart(&SDDBG, &dbgu_config);
 
     /*
      * Creates the blinker thread.
@@ -68,19 +95,15 @@ int main(void) {
     int cnt = 0;
     while (TRUE) {
         chThdSleepMilliseconds(500);
-        if (!palReadPad(IOPORT1, PIOA_B1))
-            sdWrite(&SD1, (uint8_t *)"Hello World!\r\n", 14);
-        /*
-        if (!palReadPad(IOPORT1, PIOB_B2))
-            TestThread(&SD1);
-            */
+            sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
         if(cnt & 1) {
-            chprintf((BaseSequentialStream*)&SD1, "COM1: %d\r\n", cnt);
+            chprintf((BaseSequentialStream*)&SDDBG, "COM1: %d\r\n", cnt);
         } else {
-            chprintf((BaseSequentialStream*)&SD2, "COM2: %d\r\n", cnt);
+            chprintf((BaseSequentialStream*)&SDDBG, "COM2: %d\r\n", cnt);
         }
         cnt++;
     }
 
     return 0;
 }
+

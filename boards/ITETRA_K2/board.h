@@ -133,44 +133,6 @@ I2C:
 PIOA, 0, 1, PIO_PERIPH_A
 */
 
-/*
- * I/O definitions.
- */
-#define PIOA_LCD_RESET          2
-#define PIOA_LCD_RESET_MASK     (1 << PIOA_LCD_RESET)
-#define PIOA_B1                 7
-#define PIOA_B1_MASK            (1 << PIOA_B1)
-#define PIOA_B2                 8
-#define PIOA_B2_MASK            (1 << PIOA_B2)
-#define PIOA_B3                 9
-#define PIOA_B3_MASK            (1 << PIOA_B3)
-#define PIOA_B4                 14
-#define PIOA_B4_MASK            (1 << PIOA_B4)
-#define PIOA_B5                 15
-#define PIOA_B5_MASK            (1 << PIOA_B5)
-#define PIOA_USB_PUP            25
-#define PIOA_USB_PUP_MASK       (1 << PIOA_USB_PUP)
-#define PIOA_USB_PR             26
-#define PIOA_USB_PR_MASK        (1 << PIOA_USB_PR)
-#define PIOA_CS_MMC             13
-
-#define PIOB_PHY_PD             18
-#define PIOB_PHY_PD_MASK        (1 << PIOB_PHY_PD)
-#define PIOB_AUDIO_OUT          19
-#define PIOB_AUDIO_OUT_MASK     (1 << PIOB_AUDIO_OUT)
-#define PIOB_LCD_BL             20
-#define PIOB_LCD_BL_MASK        (1 << PIOB_LCD_BL)
-#define PIOB_MMC_WP             22
-#define PIOB_MMC_WP_MASK        (1 << PIOB_MMC_WP)
-#define PIOB_MMC_CP             23
-#define PIOB_MMC_CP_MASK        (1 << PIOB_MMC_CP)
-#define PIOB_SW1                24
-#define PIOB_SW1_MASK           (1 << PIOB_SW1)
-#define PIOB_SW2                25
-#define PIOB_SW2_MASK           (1 << PIOB_SW2)
-#define PIOB_PHY_IRQ            26
-#define PIOB_PHY_IRQ_MASK       (1 << PIOB_PHY_IRQ)
-
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus
 extern "C" {
