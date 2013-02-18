@@ -107,16 +107,28 @@ void at91sam7_clock_init(void) {
 #endif
 
   /* Enables the main oscillator and waits 56 slow cycles as startup time.*/
+#if SAM7_PLATFORM == SAM7A3
+  AT91C_BASE_PMC->PMC_MOR = (AT91C_CKGR_OSCOUNT & (0x40 << 8)) | AT91C_CKGR_MOSCEN;
+#else
   AT91C_BASE_PMC->PMC_MOR = (AT91C_CKGR_OSCOUNT & (7 << 8)) | AT91C_CKGR_MOSCEN;
+#endif
   while (!(AT91C_BASE_PMC->PMC_SR & AT91C_PMC_MOSCS))
     ;
 
+#if SAM&_PLATFORM == SAM7A3
+  AT91C_BASE_PMC->PMC_PLLR = AT91C_CKGR_USBDIV_1 |
+                             AT91C_CKGR_OUT_0 |
+			     (AT91C_CKGR_DIV & 14) |
+			     (AT91C_CKGR_PLLCOUNT & (16 << 8)) |
+			     (AT91C_CKGR_MUL & ((91 - 1) << 16));
+#else
   /* PLL setup: DIV = 14, MUL = 72, PLLCOUNT = 10
      PLLfreq = 96109714 Hz (rounded).*/
   AT91C_BASE_PMC->PMC_PLLR = (AT91C_CKGR_DIV & 14) |
                              (AT91C_CKGR_PLLCOUNT & (10 << 8)) |
                              (AT91SAM7_USBDIV) |
                              (AT91C_CKGR_MUL & (72 << 16));
+#endif
   while (!(AT91C_BASE_PMC->PMC_SR & AT91C_PMC_LOCK))
     ;
 
