@@ -55,6 +55,10 @@ include $(CHIBIOS)/os/kernel/kernel.mk
 # Define linker script file here
 LDSCRIPT= $(CHIBIOS)/boards/ITETRA_K2/AT91SAM7A3.ld
 
+#PORTASM = ${CHIBIOS}/os/ports/GCC/ARM/crt0.s \
+#          ${CHIBIOS}/os/ports/GCC/ARM/chcoreasm.s \
+#          ${CHIBIOS}/boards/ITETRA_K2/vectors.s
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(PORTSRC) \

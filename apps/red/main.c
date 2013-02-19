@@ -86,21 +86,21 @@ int main(void) {
 
     /*
      * Creates the blinker thread.
-     */
+      */
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /*
      * Normal main() thread activity.
      */
     int cnt = 0;
-    while (TRUE) {
+     while (TRUE) {
         chThdSleepMilliseconds(500);
-            sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
-        if(cnt & 1) {
+#if 0
+	sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
+             sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
+         if(cnt & 1)
             chprintf((BaseSequentialStream*)&SDDBG, "COM1: %d\r\n", cnt);
-        } else {
-            chprintf((BaseSequentialStream*)&SDDBG, "COM2: %d\r\n", cnt);
-        }
+#endif
         cnt++;
     }
 

@@ -67,11 +67,21 @@ static CH_IRQ_HANDLER(SYSIrqHandler) {
  * any other initialization.
  */
 void __early_init(void) {
+  unsigned long *p, *d;
+  int i;
   
   /* Watchdog disabled.*/
   AT91C_BASE_WDTC->WDTC_WDMR = AT91C_WDTC_WDDIS;
   
   at91sam7_clock_init();
+  /* Copying vectors to SRAM */
+  p = (unsigned long *) 0x200000;
+  d = (unsigned long *) 0x104000;
+  for (i = 0; i < 10; i++) {
+	  *p = *d;
+	  p++;
+	  d++;
+  }
 }
 
 /*

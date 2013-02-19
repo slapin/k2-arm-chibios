@@ -36,7 +36,7 @@ MEMORY
     ram : org = 0x200020, len = 32k - 0x20
     */
     flash : org = 0x104000, len = 256k - 0x4000
-    ram : org = 0x200000, len = 32k
+    ram : org = 0x200040, len = 32k - 0x40
 }
 
 __ram_start__		= ORIGIN(ram);
