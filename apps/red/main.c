@@ -25,10 +25,10 @@
 #include "eeprom.h"
 
 static WORKING_AREA(waThread1, 128);
-static WORKING_AREA(waThread2, 128);
+static WORKING_AREA(waThread2, 2048);
 static EepromFileStream fram;
 
-#define EEPROM_PAGE_SIZE        32         /* page size in bytes. Consult datasheet. */
+#define EEPROM_PAGE_SIZE        128         /* page size in bytes. Consult datasheet. */
 #define EEPROM_SIZE             8192       /* total amount of memory in bytes */
 #define EEPROM_I2CD             I2CD1       /* ChibiOS I2C driver used to communicate with EEPROM */
 #define EEPROM_I2C_ADDR         0b1010000   /* EEPROM address on bus */
@@ -67,7 +67,9 @@ static msg_t gnss(void *p) {
     chRegSetThreadName("gnss");
     while (TRUE) {
         chThdSleepMilliseconds(100);
-	    int t = sdRead(&SD1, buf, 1);
+	    int t = sdGet(&SD1);
+            chprintf((BaseSequentialStream*)&SDDBG, "z %d\r\n", t);
+
 //	    dbg_hex_dump(buf, t);
 #if 0
 	// sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
@@ -81,6 +83,13 @@ static msg_t gnss(void *p) {
 }
 
 static uint8_t frambuf[1024];
+#define I2C_CLDIV 10
+#define I2C_CHDIV 10
+#define I2C_CKDIV 4
+
+static const I2CConfig i2cfg = {
+	.cwgr = (I2C_CKDIV << 16) | (I2C_CHDIV << 8) | (I2C_CLDIV)
+};
 /*
  * Application entry point.
  */
@@ -96,12 +105,14 @@ int main(void) {
     halInit();
     chSysInit();
     k2_init_serials();
+    
+    i2cStart(&I2CD1, &i2cfg);
 
     EepromFileOpen(&fram, &icfg);
     chFileStreamSeek(&fram, 0);
-    status = chFileStreamRead(&fram, frambuf, 1024);
-    if (status == 1024)
-	    dbg_hex_dump(frambuf, 1024);
+    status = chFileStreamRead(&fram, frambuf, 16);
+    if (status == 16)
+	    dbg_hex_dump(frambuf, 16);
     else
             chprintf((BaseSequentialStream*)&SDDBG, "fram read failure %d\n", status);
     chFileStreamClose(&fram);
