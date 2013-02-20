@@ -60,12 +60,15 @@ static msg_t Thread1(void *p) {
     return 0;
 }
 
-static msg_t dbguw(void *p) {
+static msg_t gnss(void *p) {
 
     (void)p;
-    chRegSetThreadName("dbguw");
+    uint8_t buf[256];
+    chRegSetThreadName("gnss");
     while (TRUE) {
-        chThdSleepMilliseconds(1500);
+        chThdSleepMilliseconds(100);
+	    int t = sdRead(&SD1, buf, 1);
+//	    dbg_hex_dump(buf, t);
 #if 0
 	// sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
         chprintf((BaseSequentialStream*)&SD1, "COM1: %d\r\n", 0);
@@ -111,7 +114,7 @@ int main(void) {
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /* FIXME */
-    chThdCreateStatic(waThread2, sizeof(waThread2), NORMALPRIO, dbguw, NULL);
+    chThdCreateStatic(waThread2, sizeof(waThread2), NORMALPRIO, gnss, NULL);
 
     /*
      * Normal main() thread activity.
