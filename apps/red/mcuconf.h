@@ -55,6 +55,7 @@
 #define USE_SAM7_DBGU_UART          TRUE
 #define SAM7_USART0_PRIORITY        (AT91C_AIC_PRIOR_HIGHEST - 2)
 #define SAM7_USART1_PRIORITY        (AT91C_AIC_PRIOR_HIGHEST - 2)
+#define SAM7_I2C_USE_I2C1           TRUE
 
 /*
  * SPI driver system settings.
