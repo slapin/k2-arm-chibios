@@ -47,14 +47,14 @@ void dbg_hex_dump(uint8_t *p, int len)
 		dump_buffer[65] = 0;
 		for (j = 0; j < 16 && j + i < len; j++) {
 			uint8_t c = *(p + i + j);
-			snprintf(&dump_buffer[j * 3], 3, "%02x ", c);
+			snprintf(&dump_buffer[j * 3], 4, "%02x  ", c);
 			if (c > ' ' && c < 127)
 				dump_buffer[49 + j] = c;
 			else
 				dump_buffer[49 + j] = '.';
 		}
 		dump_buffer[48] = ' ';
-        	chprintf((BaseSequentialStream*)&SDDBG, "hexdump: %s\n", dump_buffer);
+        	chprintf((BaseSequentialStream*)&SDDBG, "hexdump: %s\r\n", dump_buffer);
 	}
 }
 
