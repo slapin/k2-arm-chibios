@@ -67,7 +67,7 @@ CSRC = $(PORTSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(CHIBIOS)/os/various/chprintf.c \
-       main.c eeprom.c k2_serial.c $(CHIBIOS)/os/various/syscalls.c
+       main.c eeprom.c k2_serial.c gnss.c geos1m.c $(CHIBIOS)/os/various/syscalls.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -148,7 +148,7 @@ CPPWARN = -Wall -Wextra
 #
 
 # List all default C defines here, like -D_DEBUG=1
-DDEFS =
+DDEFS = -DSTDOUT_SD=SDDBG -DSTDIN_SD=SDDBG
 
 # List all default ASM defines here, like -D_DEBUG=1
 DADEFS =

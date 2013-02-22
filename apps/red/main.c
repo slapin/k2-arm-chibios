@@ -24,9 +24,10 @@
 #include "chprintf.h"
 #include "k2_serial.h"
 #include "eeprom.h"
+#include "gnss.h"
 
 static WORKING_AREA(waThread1, 128);
-static WORKING_AREA(waThread2, 2048);
+static WORKING_AREA(wa_gnss, 2048);
 static EepromFileStream fram;
 
 #define EEPROM_PAGE_SIZE        128         /* page size in bytes. Consult datasheet. */
@@ -57,20 +58,6 @@ static msg_t Thread1(void *p) {
         chThdSleepMilliseconds(100);
         palSetPad(IOPORT1, PIOA_LED_GPSACT);
         chThdSleepMilliseconds(100);
-    }
-    return 0;
-}
-
-static msg_t gnss(void *p) {
-
-    (void)p;
-    uint8_t buf[256];
-    chRegSetThreadName("gnss");
-    while (TRUE) {
-	    int t = sdRead(&SD1, buf, 16);
-            chprintf((BaseSequentialStream*)&SDDBG, "z %d\r\n", t);
-
-	    dbg_hex_dump(buf, t);
     }
     return 0;
 }
@@ -141,7 +128,7 @@ int main(void) {
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /* FIXME */
-    chThdCreateStatic(waThread2, sizeof(waThread2), NORMALPRIO, gnss, NULL);
+    chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
 
     /*
      * Normal main() thread activity.
