@@ -110,6 +110,7 @@ int main(void) {
     halInit();
     chSysInit();
     k2_init_serials();
+    palSetPad(IOPORT1, PIOA_GPS_NRST);
     
     i2cStart(&I2CD1, &i2cfg);
     for (j = 0; j < 8192; j+= 16) {
