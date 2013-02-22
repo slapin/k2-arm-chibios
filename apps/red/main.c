@@ -67,19 +67,10 @@ static msg_t gnss(void *p) {
     uint8_t buf[256];
     chRegSetThreadName("gnss");
     while (TRUE) {
-        chThdSleepMilliseconds(100);
-        chprintf((BaseSequentialStream*)&SD1, "");
-	    int t = sdGet(&SD1);
+	    int t = sdRead(&SD1, buf, 16);
             chprintf((BaseSequentialStream*)&SDDBG, "z %d\r\n", t);
 
-//	    dbg_hex_dump(buf, t);
-#if 0
-	// sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
-        chprintf((BaseSequentialStream*)&SD1, "COM1: %d\r\n", 0);
-        chprintf((BaseSequentialStream*)&SD2, "COM2: %d\r\n", 0);
-        chprintf((BaseSequentialStream*)&SD3, "COM3: %d\r\n", 0);
-        chprintf((BaseSequentialStream*)&SDDBG, "COMDBG: %d\r\n", 0);
-#endif
+	    dbg_hex_dump(buf, t);
     }
     return 0;
 }
