@@ -136,7 +136,7 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   else
     u->US_BRGR = MCK / (config->sc_speed * 16);
   u->US_MR = config->sc_mr;
-  u->US_RTOR = 100;
+  u->US_RTOR = 20;
   u->US_TTGR = 0;
   /* Configure DMA */
   u->US_RPR = (unsigned long)sdp->ib;
@@ -146,9 +146,13 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   u->US_PTCR = AT91C_PDC_RXTEN;
 
   /* Enables operations and IRQ sources.*/
-  u->US_CR = AT91C_US_RXEN | AT91C_US_TXEN | AT91C_US_DTREN | AT91C_US_RTSEN;
+  u->US_CR = AT91C_US_RXEN | AT91C_US_TXEN;
+#if 0
   u->US_IER = AT91C_US_RXRDY | AT91C_US_OVRE | AT91C_US_FRAME | AT91C_US_PARE |
-              AT91C_US_RXBRK | AT91C_US_RXBUFF | AT91C_US_ENDRX;
+              AT91C_US_RXBRK | AT91C_US_RXBUFF | AT91C_US_ENDRX |
+	      AT91C_US_ENDTX;
+#endif
+  u->US_IER = AT91C_US_ENDRX | AT91C_US_TXRDY | AT91C_US_RXRDY | AT91C_US_TIMEOUT;
 }
 
 /**
@@ -206,27 +210,26 @@ static volatile int csr_us0 = 0;
 static volatile int rcr_us0 = 0;
 static volatile int timeout_us0 = 0;
 static volatile int rxbuff_us0 = 0;
-void sd_lld_serve_interrupt(SerialDriver *sdp) {
+static volatile int lastchar_us0;
+static volatile int lastmask_us0 = 0;
+void sd_lld_serve_interrupt_us0(SerialDriver *sdp)
+{
   uint32_t csr;
   AT91PS_USART u = sdp->usart;
-
+  lastmask_us0 = u->US_IMR;
   csr = u->US_CSR;
-  if (u == (void *)0xFFFC0000UL) {
-    interrupts_us0++;
-    csr_us0 = csr;
-    if (csr & AT91C_US_TIMEOUT)
-	  timeout_us0++;
-    if (csr & (AT91C_US_RXBUFF | AT91C_US_ENDRX))
-	  rxbuff_us0++;
-  }
+  interrupts_us0++;
+  csr_us0 = csr;
+ 
+  if (csr & AT91C_US_TIMEOUT)
+    timeout_us0++;
+  if (csr & (AT91C_US_RXBUFF | AT91C_US_ENDRX))
+    rxbuff_us0++;
   if (csr & AT91C_US_RXRDY) {
-    if (u == (void *)0xFFFC0000UL)
-	    incoming_us0++;
-#if 0
+    incoming_us0++;
     chSysLockFromIsr();
     sdIncomingDataI(sdp, u->US_RHR);
     chSysUnlockFromIsr();
-#endif
   }
   if (csr & (AT91C_US_RXBUFF | AT91C_US_ENDRX)) {
 	  unsigned long rcr = u->US_RCR;
@@ -267,14 +270,45 @@ void sd_lld_serve_interrupt(SerialDriver *sdp) {
     u->US_CR = AT91C_US_RSTSTA;
     errors_us0++;
   }
-  AT91C_BASE_AIC->AIC_EOICR = 0;
+  u->US_CR = AT91C_US_RXEN | AT91C_US_STTTO | AT91C_US_RSTSTA;
+}
+
+void sd_lld_serve_interrupt(SerialDriver *sdp) {
+  uint32_t csr;
+  AT91PS_USART u = sdp->usart;
+
+  csr = u->US_CSR;
+  if (csr & AT91C_US_RXRDY) {
+    chSysLockFromIsr();
+    sdIncomingDataI(sdp, u->US_RHR);
+    chSysUnlockFromIsr();
+  }
+  if ((u->US_IMR & AT91C_US_TXRDY) && (csr & AT91C_US_TXRDY)) {
+    msg_t b;
+
+    chSysLockFromIsr();
+    b = chOQGetI(&sdp->oqueue);
+    if (b < Q_OK) {
+      chnAddFlagsI(sdp, CHN_OUTPUT_EMPTY);
+      u->US_IDR = AT91C_US_TXRDY;
+    }
+    else
+      u->US_THR = b;
+    chSysUnlockFromIsr();
+  }
+  csr &= (AT91C_US_OVRE | AT91C_US_FRAME | AT91C_US_PARE | AT91C_US_RXBRK);
+  if (csr != 0) {
+    set_error(sdp, csr);
+    u->US_CR = AT91C_US_RSTSTA;
+  }
+  // AT91C_BASE_AIC->AIC_EOICR = 0;
 }
 
 #if USE_SAM7_USART0 || defined(__DOXYGEN__)
 static void notify1(GenericQueue *qp) {
 
   (void)qp;
-  AT91C_BASE_US0->US_IER = AT91C_US_TXRDY;
+  AT91C_BASE_US0->US_IER = AT91C_US_TXRDY | AT91C_US_RXBUFF | AT91C_US_ENDRX;
 }
 #endif
 
@@ -282,7 +316,7 @@ static void notify1(GenericQueue *qp) {
 static void notify2(GenericQueue *qp) {
 
   (void)qp;
-  AT91C_BASE_US1->US_IER = AT91C_US_TXRDY;
+  AT91C_BASE_US1->US_IER = AT91C_US_TXRDY | AT91C_US_RXBUFF | AT91C_US_ENDRX;
 }
 #endif
 
@@ -291,7 +325,7 @@ static void notify2(GenericQueue *qp) {
 static void notify3(GenericQueue *qp) {
 
   (void)qp;
-  AT91C_BASE_US2->US_IER = AT91C_US_TXRDY;
+  AT91C_BASE_US2->US_IER = AT91C_US_TXRDY | AT91C_US_RXBUFF | AT91C_US_ENDRX;
 }
 #endif
 #endif /* (SAM7_PLATFORM == SAM7A3) */
@@ -317,7 +351,7 @@ static void notify_dbg(GenericQueue *qp) {
 CH_IRQ_HANDLER(USART0IrqHandler) {
 
   CH_IRQ_PROLOGUE();
-  sd_lld_serve_interrupt(&SD1);
+  sd_lld_serve_interrupt_us0(&SD1);
   AT91C_BASE_AIC->AIC_EOICR = 0;
   CH_IRQ_EPILOGUE();
 }
