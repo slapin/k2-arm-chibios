@@ -72,9 +72,10 @@ SECTIONS
 
     .eh_frame : ONLY_IF_RO {*(.eh_frame)}
 
-    . = ALIGN(4);
+    . = ALIGN(8);
     _etext = .;
-    _textdata = _etext + 4;
+    _textdata = _etext;
+    . = ALIGN(4);
 
     .data :
     {
