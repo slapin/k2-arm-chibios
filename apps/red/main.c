@@ -41,7 +41,7 @@ static uint8_t i_buf[EEPROM_TX_DEPTH];
 static I2CEepromFileConfig icfg = {
   &EEPROM_I2CD,
   0,
-  0,
+  EEPROM_SIZE, // barrier_hi
   EEPROM_SIZE,
   EEPROM_PAGE_SIZE,
   EEPROM_I2C_ADDR,
@@ -70,13 +70,17 @@ static uint8_t frambuf[1024];
 static const I2CConfig i2cfg = {
 	.cwgr = (I2C_CKDIV << 16) | (I2C_CHDIV << 8) | (I2C_CLDIV)
 };
+
+
+uint8_t rxbuf[32];
+uint8_t txbuf[16];
+
 /*
  * Application entry point.
  */
 int main(void) {
    int status;
-   uint8_t rxbuf[32];
-   uint8_t txbuf[16];
+
    int j;
     /*
      * System initializations.
@@ -91,16 +95,23 @@ int main(void) {
     palSetPad(IOPORT1, PIOA_GPS_NRST);
     
     i2cStart(&I2CD1, &i2cfg);
+
     for (j = 0; j < 8192; j+= 16) {
 	    int k;
 	    memset(rxbuf, 0xff, sizeof(rxbuf));
+
+        txbuf[0] = (j >> 8) & 0xFF;
+        txbuf[1] = j & 0xFF;
+        status = i2cMasterTransmitTimeout(&I2CD1, (0xa << 3), txbuf, 2, rxbuf, 16, 2000);
+        /*
 	    for (k = 0; k < 16; k++) {
 	        txbuf[0] = ((j + k) >> 8) & 0xff;
 	        txbuf[1] = ((j + k) & 0xff);
 	    	status = i2cMasterTransmitTimeout(&I2CD1, (0xa << 3), txbuf, 2, &rxbuf[k], 1, 2000);
-		if (status != RDY_OK)
-			break;
+            if (status != RDY_OK)
+                break;
 	    }
+        */
 	    if (status == RDY_OK) {
 		    dbg_hex_dump(rxbuf, 16);
 	    }
@@ -110,15 +121,18 @@ int main(void) {
 		    chprintf((BaseSequentialStream*)&SDDBG, "i2c timeout\r\n");
     }
     chprintf((BaseSequentialStream*)&SDDBG, "fram read status %d byte %02x\n", status, rxbuf[0]);
-#if 0
+#if 1
 
     EepromFileOpen(&fram, &icfg);
-    chFileStreamSeek(&fram, 0);
-    status = chFileStreamRead(&fram, frambuf, 16);
-    if (status == 16)
-	    dbg_hex_dump(frambuf, 16);
-    else
-            chprintf((BaseSequentialStream*)&SDDBG, "fram read failure %d\n", status);
+    for(j = 0; j < 8192; j += 16)
+    {
+        chFileStreamSeek(&fram, j);
+        status = chFileStreamRead(&fram, frambuf, 16);
+        if (status == 16)
+            dbg_hex_dump(frambuf, 16);
+        else
+                chprintf((BaseSequentialStream*)&SDDBG, "fram read failure %d\n", status);
+    }
     chFileStreamClose(&fram);
 #endif
 
@@ -128,13 +142,14 @@ int main(void) {
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /* FIXME */
-    chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
+    // chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
 
     /*
      * Normal main() thread activity.
      */
     int cnt = 0;
      while (TRUE) {
+        // chprintf((BaseSequentialStream*)&SDDBG, "COM1: %d\r\n", cnt);
         chThdSleepMilliseconds(1500);
 #if 0
 	sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);

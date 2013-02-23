@@ -74,7 +74,7 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;
-    _textdata = _etext;
+    _textdata = _etext + 4;
 
     .data :
     {
