@@ -58,6 +58,7 @@ void geos1m_parser_init(void)
 
 void geos1m_parser_input(char c)
 {
+	static int skipped_chars = 0;
 	switch (state.step) {
 	case GEOS1M_PARSER_HEADER_WAIT:{
 			char header[] = "PSGG";
@@ -71,9 +72,13 @@ void geos1m_parser_input(char c)
 					state.calc_crc[1] = 'S';
 					state.calc_crc[2] = 'G';
 					state.calc_crc[3] = 'G';
+					DEBUG(GNSS, NORMAL, "Skipped %d chars" CRLF, skipped_chars);
+					skipped_chars = 0;
 				}
-			} else
+			} else  {
 				state.header_step = 0;
+				skipped_chars++;
+			}
 
 		}
 		break;
