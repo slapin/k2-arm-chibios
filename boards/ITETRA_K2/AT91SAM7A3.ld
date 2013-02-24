@@ -72,12 +72,11 @@ SECTIONS
 
     .eh_frame : ONLY_IF_RO {*(.eh_frame)}
 
-    . = ALIGN(8);
+    . = ALIGN(4);
     _etext = .;
     _textdata = _etext;
-    . = ALIGN(4);
 
-    .data :
+    .data : AT (_textdata)
     {
         _data = .;
         *(.data)
@@ -87,7 +86,7 @@ SECTIONS
         *(.ramtext)
         . = ALIGN(4);
         _edata = .;
-    } > ram AT > flash
+    } > ram
 
     .bss :
     {
