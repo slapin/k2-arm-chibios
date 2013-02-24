@@ -136,7 +136,7 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   else
     u->US_BRGR = MCK / (config->sc_speed * 16);
   u->US_MR = config->sc_mr;
-  u->US_RTOR = 64;
+  u->US_RTOR = 4;
   u->US_TTGR = 0;
   /* Configure DMA */
   u->US_RPR = (unsigned long)sdp->ib;
@@ -243,8 +243,14 @@ static void accept_data(SerialDriver *sdp)
 	  rcr_us0 = rcr;
 	  if (rcr < sizeof(rx_dmabuf[0])) {
               chSysLockFromIsr();
-	      for (i = 0; i < sizeof(rx_dmabuf[0]) - rcr; i++)
-                  sdIncomingDataI(sdp, rx_dmabuf[cp][i]);
+  	      if (chIQIsEmptyI(&sdp->iqueue))
+    	          chnAddFlagsI(sdp, CHN_INPUT_AVAILABLE);
+	      for (i = 0; i < sizeof(rx_dmabuf[0]) - rcr; i++) {
+                  if (chIQPutI(&sdp->iqueue, rx_dmabuf[rx_dmabuf_index][i]) < Q_OK) {
+                      chnAddFlagsI(sdp, SD_OVERRUN_ERROR);
+		      break;
+		  }
+	      }
               chSysUnlockFromIsr();
 	  }
 }
