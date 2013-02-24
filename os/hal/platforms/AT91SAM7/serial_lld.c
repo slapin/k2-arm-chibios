@@ -136,7 +136,7 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   else
     u->US_BRGR = MCK / (config->sc_speed * 16);
   u->US_MR = config->sc_mr;
-  u->US_RTOR = 20;
+  u->US_RTOR = 64;
   u->US_TTGR = 0;
   /* Configure DMA */
   u->US_RPR = (unsigned long)sdp->ib;
@@ -214,21 +214,24 @@ static volatile int timeout_us0 = 0;
 static volatile int rxbuff_us0 = 0;
 static volatile int lastchar_us0;
 static volatile int lastmask_us0 = 0;
-static volatile uint8_t rx_dmabuf[512];
+static volatile uint8_t rx_dmabuf[2][256];
+static volatile int rx_dmabuf_index = 0;
 static void reset_rx_dma(SerialDriver *sdp)
 {
   AT91PS_USART u = sdp->usart;
-  u->US_RNCR = sizeof(rx_dmabuf);
-  u->US_RNPR = (unsigned long) rx_dmabuf;
-  u->US_RCR = sizeof(rx_dmabuf);
-  u->US_RPR = (unsigned long) rx_dmabuf;
+  u->US_RNCR = sizeof(rx_dmabuf[0]);
+  u->US_RNPR = (unsigned long) rx_dmabuf[rx_dmabuf_index];
+  u->US_RCR = sizeof(rx_dmabuf[0]);
+  u->US_RPR = (unsigned long) rx_dmabuf[rx_dmabuf_index];
   u->US_PTCR = AT91C_PDC_RXTEN;
+  rx_dmabuf_index ^= 1;
 }
 static void set_next_dma(SerialDriver *sdp)
 {
   AT91PS_USART u = sdp->usart;
-  u->US_RNCR = sizeof(rx_dmabuf);
-  u->US_RNPR = (unsigned long) rx_dmabuf;
+  u->US_RNCR = sizeof(rx_dmabuf[0]);
+  u->US_RNPR = (unsigned long) rx_dmabuf[rx_dmabuf_index];
+  rx_dmabuf_index ^= 1;
 }
 static volatile uint32_t rcr_us0 = 0;
 static void accept_data(SerialDriver *sdp)
@@ -236,11 +239,12 @@ static void accept_data(SerialDriver *sdp)
 	  AT91PS_USART u = sdp->usart;
 	  unsigned long rcr = u->US_RCR;
 	  unsigned long i;
+	  unsigned long cp = rx_dmabuf_index;
 	  rcr_us0 = rcr;
-	  if (rcr < sizeof(rx_dmabuf)) {
+	  if (rcr < sizeof(rx_dmabuf[0])) {
               chSysLockFromIsr();
-	      for (i = 0; i < sizeof(rx_dmabuf) - rcr; i++)
-                  sdIncomingDataI(sdp, rx_dmabuf[i]);
+	      for (i = 0; i < sizeof(rx_dmabuf[0]) - rcr; i++)
+                  sdIncomingDataI(sdp, rx_dmabuf[cp][i]);
               chSysUnlockFromIsr();
 	  }
 }
