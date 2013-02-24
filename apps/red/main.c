@@ -142,7 +142,7 @@ int main(void) {
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /* FIXME */
-    // chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
+    chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
 
     /*
      * Normal main() thread activity.
