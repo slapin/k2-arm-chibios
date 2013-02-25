@@ -84,7 +84,7 @@ uint8_t txbuf[16];
  * Application entry point.
  */
 int main(void) {
-   int status;
+   int status, fd;
 
    int j;
     /*
@@ -140,6 +140,25 @@ int main(void) {
     }
     chFileStreamClose(&fram);
 #endif
+    fd = open("/dev/fram", O_RDWR);
+    lseek(fd, 512, SEEK_SET);
+    read(fd, frambuf, 16);
+    chprintf((BaseSequentialStream*)&SDDBG, "FRAM via files\r\n");
+    dbg_hex_dump(frambuf, 16);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    lseek(fd, 512, SEEK_SET);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    read(fd, frambuf, 16);
+    dbg_hex_dump(frambuf, 16);
+    close(fd);
 
     fram_init();
     fram_open();
