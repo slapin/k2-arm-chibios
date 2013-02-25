@@ -137,9 +137,11 @@ int _read_r(struct _reent *r, int file, void * ptr, int len)
 int _lseek_r(struct _reent *r, int file, int ptr, int dir)
 {
   (void)r;
-  if (file == 4 && dir == SEEK_SET)
+  if (file == 4 && dir == SEEK_SET) {
+	/* FIXME add margins check */
 	chFileStreamSeek(&fram, ptr);
-  else {
+	return ptr;
+  } else {
 	__errno_r(r) = EINVAL;
 	return -1;
   }
