@@ -67,7 +67,8 @@ CSRC = $(PORTSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(CHIBIOS)/os/various/chprintf.c \
-       main.c eeprom.c k2_serial.c gnss.c geos1m.c $(CHIBIOS)/os/various/syscalls.c
+       main.c eeprom.c k2_serial.c gnss.c \
+       geos1m.c geo.c $(CHIBIOS)/os/various/syscalls.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -160,7 +161,7 @@ DINCDIR =
 DLIBDIR =
 
 # List all default libraries here
-DLIBS =
+DLIBS = -lm
 
 #
 # End of default section

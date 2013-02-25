@@ -136,6 +136,7 @@ int main(void) {
     chFileStreamClose(&fram);
 #endif
 
+    gnss_init();
     /*
      * Creates the blinker thread.
       */
