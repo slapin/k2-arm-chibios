@@ -69,7 +69,8 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/chprintf.c \
        main.c eeprom.c k2_serial.c gnss.c \
        geos1m.c geo.c file_queue.c \
-       crc16_ccitt.c \
+       crc16_ccitt.c fram.c file_datablock.c \
+       file_sekop_transact.c tml.c \
        syscalls.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global

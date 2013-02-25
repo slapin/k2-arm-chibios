@@ -19,6 +19,11 @@
 */
 
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
@@ -136,6 +141,8 @@ int main(void) {
     chFileStreamClose(&fram);
 #endif
 
+    fram_init();
+    fram_open();
     gnss_init();
     /*
      * Creates the blinker thread.
