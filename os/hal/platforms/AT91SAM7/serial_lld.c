@@ -203,7 +203,8 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
     u->US_RTOR = 0;
   u->US_TTGR = 0;
   /* Configure DMA */
-  reset_rx_dma(sdp);
+  if (sdp != &SDDBG)
+    reset_rx_dma(sdp);
   reset_tx_dma(sdp, 0);
   sdp->dma_rx_index = 0;
   sdp->dma_tx_index = 0;
