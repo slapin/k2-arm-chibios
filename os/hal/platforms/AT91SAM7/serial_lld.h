@@ -150,7 +150,11 @@ typedef struct {
   uint8_t                   ob[SERIAL_BUFFERS_SIZE];                        \
   /* End of the mandatory fields.*/                                         \
   /* Pointer to the USART registers block.*/                                \
-  AT91PS_USART              usart;
+  AT91PS_USART              usart;                                          \
+  uint8_t                   dma_buf_rx[2][SERIAL_BUFFERS_SIZE];             \
+  uint8_t                   dma_buf_tx[2][SERIAL_BUFFERS_SIZE];             \
+  int                       dma_rx_index;                                   \
+  int                       dma_tx_index;                                   \
 
 /*===========================================================================*/
 /* Driver macros.                                                            */
