@@ -174,17 +174,20 @@ int main(void) {
     /*
      * Normal main() thread activity.
      */
-    int cnt = 0;
-     while (TRUE) {
+    uint8_t ch;
+        chprintf((BaseSequentialStream*)&SDDBG, "LOL\r\n");
+        chThdSleepMilliseconds(2500);
+    while (TRUE) {
+        ch = sdGet(&SDDBG);
+        chprintf((BaseSequentialStream*)&SDDBG, "got %02x\r\n", ch);
         // chprintf((BaseSequentialStream*)&SDDBG, "COM1: %d\r\n", cnt);
-        chThdSleepMilliseconds(1500);
 #if 0
 	sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
              sdWrite(&SDDBG, (uint8_t *)"Hello World!\r\n", 14);
          if(cnt & 1)
             chprintf((BaseSequentialStream*)&SDDBG, "COM1: %d\r\n", cnt);
-#endif
         cnt++;
+#endif
     }
 
     return 0;
