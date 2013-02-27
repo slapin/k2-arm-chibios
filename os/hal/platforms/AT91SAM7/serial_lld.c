@@ -261,12 +261,6 @@ static void set_error(SerialDriver *sdp, AT91_REG csr) {
   chSysUnlockFromIsr();
 }
 
-#if defined(__GNUC__)
-__attribute__((noinline))
-#endif
-#if !USE_SAM7_DBGU_UART
-static
-#endif
 /**
  * @brief   Common IRQ handler.
  *
@@ -290,6 +284,12 @@ static void accept_data(SerialDriver *sdp)
               chSysUnlockFromIsr();
 	  }
 }
+#if defined(__GNUC__)
+__attribute__((noinline))
+#endif
+#if !USE_SAM7_DBGU_UART
+static
+#endif
 void sd_lld_serve_interrupt(SerialDriver *sdp)
 {
   uint32_t csr;
@@ -297,16 +297,6 @@ void sd_lld_serve_interrupt(SerialDriver *sdp)
   int isdbgu = sdp == &SDDBG;
   csr = u->US_CSR;
 
-#if 0
-  if (sdp == &SDDBG) {
-	  if (csr & AT91C_US_RXRDY) {
-    			chSysLockFromIsr();
-			sdIncomingDataI(sdp, u->US_RHR);
-			chSysUnlockFromIsr();
-	  }
-  }
-#endif
- 
   if (csr & AT91C_US_RXRDY && isdbgu) {
     chSysLockFromIsr();
     sdIncomingDataI(sdp, u->US_RHR);
@@ -333,21 +323,6 @@ void sd_lld_serve_interrupt(SerialDriver *sdp)
 		  set_next_tx_dma(sdp, size);
 	  }
   }
-#if 0
-  if ((u->US_IMR & AT91C_US_TXRDY) && (csr & AT91C_US_TXRDY)) {
-    msg_t b;
-
-    chSysLockFromIsr();
-    b = chOQGetI(&sdp->oqueue);
-    if (b < Q_OK) {
-      chnAddFlagsI(sdp, CHN_OUTPUT_EMPTY);
-      u->US_IDR = AT91C_US_TXRDY;
-    }
-    else
-      u->US_THR = b;
-    chSysUnlockFromIsr();
-  }
-#endif
   csr &= (AT91C_US_OVRE | AT91C_US_FRAME | AT91C_US_PARE | AT91C_US_RXBRK);
   if (csr != 0) {
     set_error(sdp, csr);
@@ -355,39 +330,6 @@ void sd_lld_serve_interrupt(SerialDriver *sdp)
   }
   u->US_CR = AT91C_US_RXEN | AT91C_US_STTTO | AT91C_US_RSTSTA;
 }
-
-#if 0
-void sd_lld_serve_interrupt(SerialDriver *sdp) {
-  uint32_t csr;
-  AT91PS_USART u = sdp->usart;
-
-  csr = u->US_CSR;
-  if (csr & AT91C_US_RXRDY) {
-    chSysLockFromIsr();
-    sdIncomingDataI(sdp, u->US_RHR);
-    chSysUnlockFromIsr();
-  }
-  if ((u->US_IMR & AT91C_US_TXRDY) && (csr & AT91C_US_TXRDY)) {
-    msg_t b;
-
-    chSysLockFromIsr();
-    b = chOQGetI(&sdp->oqueue);
-    if (b < Q_OK) {
-      chnAddFlagsI(sdp, CHN_OUTPUT_EMPTY);
-      u->US_IDR = AT91C_US_TXRDY;
-    }
-    else
-      u->US_THR = b;
-    chSysUnlockFromIsr();
-  }
-  csr &= (AT91C_US_OVRE | AT91C_US_FRAME | AT91C_US_PARE | AT91C_US_RXBRK);
-  if (csr != 0) {
-    set_error(sdp, csr);
-    u->US_CR = AT91C_US_RSTSTA;
-  }
-  // AT91C_BASE_AIC->AIC_EOICR = 0;
-}
-#endif
 
 #if USE_SAM7_USART0 || defined(__DOXYGEN__)
 static void notify1(GenericQueue *qp) {
