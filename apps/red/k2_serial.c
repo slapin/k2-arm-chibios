@@ -1,13 +1,19 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
 /* GNSS */
-static const SerialConfig usart1_config = {
+static const SerialConfig usart1_config_geos = {
 	  115200 /* depends */,
 	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
 	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
+};
+static const SerialConfig usart1_config_1k161 = {
+	  38400 /* depends */,
+	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
+	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_ODD | AT91C_US_NBSTOP_1_BIT
 };
 /* PV */
 static const SerialConfig usart2_config = {
@@ -27,16 +33,29 @@ static const SerialConfig dbgu_config = {
 	  AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
 	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
 };
+static struct Mutex debug_mutex;
 void k2_init_serials(void)
 {
+    chMtxInit(&debug_mutex);
     /*
      * Activates the serial driver.
      */
-    sdStart(&SD1, &usart1_config);
+    sdStart(&SD1, &usart1_config_geos); /* XXX */
     sdStart(&SD2, &usart2_config);
     sdStart(&SD3, &usart3_config);
     sdStart(&SDDBG, &dbgu_config);
 }
+void k2_usart1_geos(void)
+{
+    sdStop(&SD1);
+    sdStart(&SD1, &usart1_config_geos);
+}
+void k2_usart1_1k161(void)
+{
+    sdStop(&SD1);
+    sdStart(&SD1, &usart1_config_1k161);
+}
+
 
 void dbg_hex_dump(uint8_t *p, int len)
 {
@@ -58,4 +77,13 @@ void dbg_hex_dump(uint8_t *p, int len)
 	}
 }
 
+void pr_debug(const char *p, ...)
+{
+	va_list ap;
+	chMtxLock(&debug_mutex);
+	va_start(ap, p);
+	vprintf(p, ap);
+	va_end(ap);
+	chMtxUnlock();
+}
 

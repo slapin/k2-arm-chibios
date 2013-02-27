@@ -32,7 +32,7 @@
 #include "gnss.h"
 
 static WORKING_AREA(waThread1, 128);
-static WORKING_AREA(wa_gnss, 2048);
+static WORKING_AREA(wa_gnss, 4096);
 static EepromFileStream fram;
 
 #define EEPROM_PAGE_SIZE        128         /* page size in bytes. Consult datasheet. */
@@ -86,7 +86,7 @@ uint8_t txbuf[16];
 int main(void) {
    int status, fd;
 
-   int j;
+   int j, rv;
     /*
      * System initializations.
      * - HAL initialization, this also initializes the configured device drivers
@@ -97,49 +97,11 @@ int main(void) {
     halInit();
     chSysInit();
     k2_init_serials();
+    chprintf((BaseSequentialStream*)&SDDBG, "BOOT\r\n");
     palSetPad(IOPORT1, PIOA_GPS_NRST);
     
     i2cStart(&I2CD1, &i2cfg);
 
-    for (j = 0; j < 8192; j+= 16) {
-	    int k;
-	    memset(rxbuf, 0xff, sizeof(rxbuf));
-
-        txbuf[0] = (j >> 8) & 0xFF;
-        txbuf[1] = j & 0xFF;
-        status = i2cMasterTransmitTimeout(&I2CD1, (0xa << 3), txbuf, 2, rxbuf, 16, 2000);
-        /*
-	    for (k = 0; k < 16; k++) {
-	        txbuf[0] = ((j + k) >> 8) & 0xff;
-	        txbuf[1] = ((j + k) & 0xff);
-	    	status = i2cMasterTransmitTimeout(&I2CD1, (0xa << 3), txbuf, 2, &rxbuf[k], 1, 2000);
-            if (status != RDY_OK)
-                break;
-	    }
-        */
-	    if (status == RDY_OK) {
-		    dbg_hex_dump(rxbuf, 16);
-	    }
-	    if (status == RDY_RESET)
-		    chprintf((BaseSequentialStream*)&SDDBG, "i2c reset\r\n");
-	    if (status == RDY_TIMEOUT)
-		    chprintf((BaseSequentialStream*)&SDDBG, "i2c timeout\r\n");
-    }
-    chprintf((BaseSequentialStream*)&SDDBG, "fram read status %d byte %02x\n", status, rxbuf[0]);
-#if 1
-
-    EepromFileOpen(&fram, &icfg);
-    for(j = 0; j < 8192; j += 16)
-    {
-        chFileStreamSeek(&fram, j);
-        status = chFileStreamRead(&fram, frambuf, 16);
-        if (status == 16)
-            dbg_hex_dump(frambuf, 16);
-        else
-                chprintf((BaseSequentialStream*)&SDDBG, "fram read failure %d\n", status);
-    }
-    chFileStreamClose(&fram);
-#endif
     fd = open("/dev/fram", O_RDWR);
     lseek(fd, 512, SEEK_SET);
     read(fd, frambuf, 16);
@@ -160,16 +122,26 @@ int main(void) {
     dbg_hex_dump(frambuf, 16);
     close(fd);
 
+    chprintf((BaseSequentialStream*)&SDDBG, "FRAM init\r\n");
     fram_init();
     fram_open();
-    gnss_init();
+    chThdSleepMilliseconds(2500);
+    chprintf((BaseSequentialStream*)&SDDBG, "GNSS init\r\n");
+    rv = gnss_init();
     /*
      * Creates the blinker thread.
       */
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /* FIXME */
-    chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
+    switch(rv) {
+    case 1:
+        chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread_geos, NULL);
+	break;
+    case 2:
+        chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread_1k161, NULL);
+	break;
+    }
 
     /*
      * Normal main() thread activity.

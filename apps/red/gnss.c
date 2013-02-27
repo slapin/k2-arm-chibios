@@ -7,6 +7,7 @@
 #include "k2_serial.h"
 #include "gnss.h"
 #include "geos1m.h"
+#include "1k161.h"
 #include "geo.h"
 
 static msg_t mbox_geo_buffer[10];
@@ -15,12 +16,12 @@ static msg_t mbox_sat_buffer[10];
 static MAILBOX_DECL(mbox_geo, mbox_geo_buffer, 10);
 static MAILBOX_DECL(mbox_tel, mbox_tel_buffer, 10);
 static MAILBOX_DECL(mbox_sat, mbox_sat_buffer, 10);
-static WORKING_AREA(wa_geo, 256);
+static WORKING_AREA(wa_geo, 2048);
 static WORKING_AREA(wa_tel, 256);
 static WORKING_AREA(wa_sat, 256);
 
 status_gnss_t status_gnss;
-static Tgeo geoinfo = {0};
+static Tgeo geoinfo;
 
 static void set_antenna_status(int status)
 {
@@ -73,7 +74,7 @@ void decision_complete(void)
 #endif
 }
 
-static int geos_packet_header(int c)
+static int packet_header_geos(int c)
 {
 	char header[] = "PSGG";
 	static int header_step = 0;
@@ -93,6 +94,26 @@ static int geos_packet_header(int c)
 	}
 	return 0;
 }
+static int packet_header_1k161(int c)
+{
+	char header[] = {0x57, 0xf1};
+	static int header_step = 0;
+	static int skipped_chars = 0;
+	if (header[header_step] == c) {
+		header_step++;
+		if (header_step == sizeof(header)) {
+			if (skipped_chars > 0)
+				printf("Skip %d\r\n", skipped_chars);
+			header_step = 0;
+			skipped_chars = 0;
+			return 1;
+		}
+	} else {
+		header_step = 0;
+		skipped_chars++;
+	}
+	return 0;
+}
 struct packet_msg {
 	int id;
 	int len;
@@ -100,23 +121,29 @@ struct packet_msg {
 };
 static void process_packet(struct packet_msg *p)
 {
+	int res;
 	switch(p->id) {
 	case 0x20: /* Geodata */
-		chMBPost(&mbox_geo, (msg_t)p, TIME_INFINITE);
+		res = chMBPost(&mbox_geo, (msg_t)p, TIME_IMMEDIATE);
 		break;
 	case 0x21: /* Telemetry */
-		chMBPost(&mbox_tel, (msg_t)p, TIME_INFINITE);
+		res = chMBPost(&mbox_tel, (msg_t)p, TIME_IMMEDIATE);
 		break;
 	case 0x22: /* Sats channels */
-		chMBPost(&mbox_sat, (msg_t)p, TIME_INFINITE);
+		res = chMBPost(&mbox_sat, (msg_t)p, TIME_IMMEDIATE);
 		break;
 	default:
-		printf("bad %02x\r\n", p->id);
+		pr_debug("bad %02x\r\n", p->id);
 		chHeapFree(p);
+		return;
 		break;
 	}
+	if (res != RDY_OK) {
+		pr_debug("timeout\r\n");
+		chHeapFree(p);
+	}
 }
-static void geos_packet_detector(int c)
+static void packet_detector_geos(int c)
 {
 	static int state = 0;
 	static int packetnum = 0;
@@ -128,7 +155,7 @@ static void geos_packet_detector(int c)
 		crc = geos_crc(c, 0);
 	switch(state) {
 	case 0:
-		if (geos_packet_header(c)) {
+		if (packet_header_geos(c)) {
 			state = 1;
 			geos_crc('P', 1);
 			geos_crc('S', 0);
@@ -200,11 +227,14 @@ static void geos_packet_detector(int c)
 }
 
 static uint8_t gnss_buffer[1024];
-msg_t gnss_thread(void *p) {
+
+msg_t gnss_thread_geos(void *p) {
 
     (void)p;
     chRegSetThreadName("gnss");
+#if 0
     init_geos1m();
+#endif
     while (TRUE) {
 	    int i;
 	    int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
@@ -214,24 +244,42 @@ msg_t gnss_thread(void *p) {
 	    	geos1m_parser_input(buf[i]);
 #endif
 	    for (i = 0; i < t; i++)
-		    geos_packet_detector(gnss_buffer[i]);
+		    packet_detector_geos(gnss_buffer[i]);
     }
     return 0;
+}
+static void packet_detector_1k161(int c)
+{
+}
+static void do_1k161_states(void)
+{
+	static int state = GNSS_STATE_RESET;
+}
+
+msg_t gnss_thread_1k161(void *p) {
+	while(TRUE) {
+		int t, i;
+		do_1k161_states();
+	        t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
+	        for (i = 0; i < t; i++)
+			packet_detector_1k161(gnss_buffer[i]);
+	}
 }
 
 static msg_t geo_thread(void *p)
 {
 	msg_t msg, result;
 	struct packet_msg *pkt;
+	(void)p;
 	while (TRUE) {
 		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
 		pkt = (struct packet_msg *) msg;
-		Tgeos1m_packet_geographic *Pmsg = pkt->data;
+		Tgeos1m_packet_geographic *Pmsg = (Tgeos1m_packet_geographic *)pkt->data;
 		double time_s_int;
 		double time_s_fract = modf(Pmsg->time_s, &time_s_int);
 		time_t tstamp = 0x47798280 + (int)time_s_int;
 		struct tm *gtim = gmtime(&tstamp);
-		chprintf((struct BaseSequentialStream *)&SDDBG, "GEOGRAPH PARSE tstamp = %ld\r\n", tstamp);
+		chprintf((BaseSequentialStream *)&SDDBG, "GEOGRAPH PARSE tstamp = %ld\r\n", tstamp);
 		geoinfo.dtime.msec = (int)(time_s_fract * 1000);
 		geoinfo.dtime.sec = gtim->tm_sec;
 		geoinfo.dtime.min = gtim->tm_min;
@@ -243,11 +291,11 @@ static msg_t geo_thread(void *p)
 		geoinfo.lat = Pmsg->lat;
 		geoinfo.lon = Pmsg->lon;
 		geoinfo.alt = Pmsg->alt;
-#if 0
 		geo_motion2D_pol2geo(Pmsg->course, Pmsg->speed, &geoinfo.motion);// ñêîðîñòü, êóðñ
 		
 		geo_DOP2geo(Pmsg->HDOP, Pmsg->VDOP, Pmsg->TDOP, &geoinfo.prec);
 				
+#if 0
 		DEBUGCRLF(GNSS, DETAILED);
 		geo_time_result();//geo&time debug prited by this function
 		dop_result();
@@ -263,13 +311,13 @@ static msg_t tel_thread(void *p)
 	msg_t msg, result;
 	struct packet_msg *pkt;
 	uint32_t status;
+	(void)p;
 	Tgeos1m_packet_cur_telemetry *Pmsg;
-	Tgeos1m_packet_cur_telemetry_status *pstatus;
 	while (TRUE) {
 		result = chMBFetch(&mbox_tel, &msg, TIME_INFINITE);
 		pkt = (struct packet_msg *) msg;
-		chprintf((struct BaseSequentialStream *)&SDDBG, "TELEMETRY\r\n");
-		Pmsg = pkt->data;
+		chprintf((BaseSequentialStream *)&SDDBG, "TELEMETRY\r\n");
+		Pmsg = (Tgeos1m_packet_cur_telemetry *)pkt->data;
 		status = Pmsg->status;
 		set_antenna_status(!(status & GEOS1M_STATUS_ANTV));
 		decision_complete();
@@ -281,19 +329,73 @@ static msg_t sat_thread(void *p)
 {
 	msg_t msg, result;
 	struct packet_msg *pkt;
+	(void)p;
 	while (TRUE) {
 		result = chMBFetch(&mbox_sat, &msg, TIME_INFINITE);
 		pkt = (struct packet_msg *) msg;
-		chprintf((struct BaseSequentialStream *)&SDDBG, "SAT\r\n");
+		chprintf((BaseSequentialStream *)&SDDBG, "SAT\r\n");
 		chHeapFree(pkt);
 	}
 	return 0;
 }
 
-void gnss_init(void)
+static int detect_geos(void)
 {
-	chThdCreateStatic(wa_geo, sizeof(wa_geo), NORMALPRIO, geo_thread, NULL);
-	chThdCreateStatic(wa_tel, sizeof(wa_tel), NORMALPRIO, tel_thread, NULL);
-	chThdCreateStatic(wa_sat, sizeof(wa_sat), NORMALPRIO, sat_thread, NULL);
+	int i, j;
+	int detected = 0;
+	k2_usart1_geos();
+	for (i = 0; i < 20; i++) {
+		int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
+		if (t > 0) {
+			for (j = 0; j < t; j++) {
+				if (packet_header_geos(gnss_buffer[j]))
+					detected = 1;
+			}
+		}
+	}
+	return detected;
+}
+
+static int detect_1k161(void)
+{
+	int i, j;
+	int detected = 0;
+	k2_usart1_1k161();
+	for (i = 0; i < 20; i++) {
+		int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
+		if (t > 0) {
+			dbg_hex_dump(gnss_buffer, t);
+			for (j = 0; j < t; j++) {
+				if (packet_header_1k161(gnss_buffer[j]))
+					detected = 1;
+			}
+		}
+	}
+	return detected;
+}
+
+int gnss_init(void)
+{
+	int use_geos = 0, use_1k161 = 0;
+	/* Detecting receiver */
+	while(!use_geos && !use_1k161) {
+		if (detect_geos()) {
+			pr_debug("Geostar GeoS-1M detected\r\n");
+			use_geos = 1;
+		} else if (detect_1k161()) {
+			pr_debug("RIRV 1K-161 detected\r\n");
+			use_1k161 = 1;
+		}
+	}
+	if (use_geos) {
+		chThdCreateStatic(wa_geo, sizeof(wa_geo), NORMALPRIO, geo_thread, NULL);
+		chThdCreateStatic(wa_tel, sizeof(wa_tel), NORMALPRIO, tel_thread, NULL);
+		chThdCreateStatic(wa_sat, sizeof(wa_sat), NORMALPRIO, sat_thread, NULL);
+	}
+	if (use_geos)
+		return 1;
+	else if (use_1k161)
+		return 2;
+	return 0;
 }
 

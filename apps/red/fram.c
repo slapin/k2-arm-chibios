@@ -25,18 +25,19 @@
 
 #include <string.h>	// memcpy
 #include <stdio.h>
+#include "k2_serial.h"
 
 #define MIN_TIME 0x494ed880
 
-#define DEBUG(a, b, ...) printf(__VA_ARGS__)
-#define DEBUGF(a, b, ...) printf(__VA_ARGS__)
-#define DBGPRINTF(a, b, ...) printf(__VA_ARGS__)
-#define DEBUGCRLF(a, b) printf("\r\n")
+#define DEBUG(a, b, ...) pr_debug(__VA_ARGS__)
+#define DEBUGF(a, b, ...) pr_debug(__VA_ARGS__)
+#define DBGPRINTF(a, b, ...) pr_debug(__VA_ARGS__)
+#define DEBUGCRLF(a, b) pr_debug("\r\n")
 #define CRLF "\r\n"
 #define NoYes(c) (c) ? 'Y':'N'
 #define DBGCONDITION(x, y) 1
 #define DEBUGDUMP_P(x, y, buf, len) dbg_hex_dump(buf, len)
-#define DBGPRINTSTR(x, y, s) printf("%s\r\n", s)
+#define DBGPRINTSTR(x, y, s) pr_debug("%s\r\n", s)
 
 extern time_t sys_time;
 
@@ -130,14 +131,14 @@ void queue_add_check(Tfqueue *queue, const void *data, int size, time_t tim)
 		if (queue->res == FQUEUE_ENOSPC) {
 			//queue_del(queue, 1);
 			time_t begin = 1, end = 0x7FFFFFFF;
-			printf("Alert: out of space, removing old item\r\n");
+			pr_debug("Alert: out of space, removing old item\r\n");
 			fqueue_status(queue, &begin, &end);//search the oldest item
 			RETURN_IF_ERROR();
 			fqueue_clean(queue, begin, begin);//delete oldest item
 			RETURN_IF_ERROR();
 			fqueue_add(queue, tim, data, size);
 			if (queue->res == FQUEUE_ENOSPC)
-				printf("Alert: still out of space, removing old item\r\n");
+				pr_debug("Alert: still out of space, removing old item\r\n");
 			//return queue_add(queue, data, size, time);
 		}
 	} else {
@@ -225,7 +226,7 @@ int fram_write_sdispout(void *data, int size)
 	struct dispq_data *p = malloc(sizeof(struct dispq_data) + size);
 	p->d_size = size;
 	memcpy(p->data, data, size);
-	printf("Alert: adding to queue %d bytes\r\n", p->d_size);
+	pr_debug("Alert: adding to queue %d bytes\r\n", p->d_size);
 	queue_add_check(&queue_sdispout, p, sizeof(struct dispq_data) + size, sys_time);
 	free(p);
 	if (queue_sdispout.res != FQUEUE_OK) {
@@ -443,9 +444,9 @@ int sdispout_get_count(void)
 {
 	int ret;
 	Tfqueue_time end = 0x7fffffff, beg = 0x0;
-	printf("damn running status\r\n");
+	pr_debug("damn running status\r\n");
 	ret = fqueue_status(&queue_sdispout, &beg, &end);
-	printf("fqueue_status: %d\r\n", ret);
+	pr_debug("fqueue_status: %d\r\n", ret);
 	return ret;
 }
 
@@ -453,26 +454,26 @@ time_t sdispout_pass_next(void *data, int *size)
 {
 	int tsize = DISP_SIZE, ret;
 	struct dispq_data *d = malloc(DISP_SIZE);
-	printf("Alert: dispdata %p\r\n", d);
+	pr_debug("Alert: dispdata %p\r\n", d);
 	if (!d)
 		return -1;
 	ret = fqueue_read(&queue_sdispout, 0, 0x7fffffff, d, &tsize);
-	printf("Alert: Got data from queue %p %d\r\n", d, tsize);
+	pr_debug("Alert: Got data from queue %p %d\r\n", d, tsize);
 	print_dump(d, tsize);
 	if (tsize > 0) {
-		printf("Alert: got data time %d %p %d\r\n", ret, d->data, d->d_size);
+		pr_debug("Alert: got data time %d %p %d\r\n", ret, d->data, d->d_size);
 		if (d->d_size > DISP_SIZE) {
-			printf("Alert: panic: d_size %d > %d\r\n", d->d_size, DISP_SIZE);
+			pr_debug("Alert: panic: d_size %d > %d\r\n", d->d_size, DISP_SIZE);
 			*size = 0;
 			free(d);
 			return ret;
 		}
 		memcpy(data, d->data, d->d_size);
 		*size = d->d_size;
-		printf("Alert: size is %d\r\n", *size);
+		pr_debug("Alert: size is %d\r\n", *size);
 	} else {
 		*size = 0;
-		printf("Alert: zero data from queue\r\n");
+		pr_debug("Alert: zero data from queue\r\n");
 	}
 	free(d);
 	return ret;
