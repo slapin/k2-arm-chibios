@@ -12,5 +12,6 @@ enum {
 	GNSS_STATE_CHANNEL_CFG_RESULT,
 	GNSS_STATE_SELFTEST_RESULT,
 };
+int detect_1k161(void);
 
 #endif

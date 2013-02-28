@@ -67,7 +67,7 @@ CSRC = $(PORTSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(CHIBIOS)/os/various/chprintf.c \
-       main.c eeprom.c k2_serial.c gnss.c \
+       main.c eeprom.c k2_serial.c gnss.c 1k161.c \
        geos1m.c geo.c file_queue.c \
        crc16_ccitt.c fram.c file_datablock.c \
        file_sekop_transact.c tml.c \

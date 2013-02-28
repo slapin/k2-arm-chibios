@@ -94,26 +94,6 @@ static int packet_header_geos(int c)
 	}
 	return 0;
 }
-static int packet_header_1k161(int c)
-{
-	char header[] = {0x57, 0xf1};
-	static int header_step = 0;
-	static int skipped_chars = 0;
-	if (header[header_step] == c) {
-		header_step++;
-		if (header_step == sizeof(header)) {
-			if (skipped_chars > 0)
-				printf("Skip %d\r\n", skipped_chars);
-			header_step = 0;
-			skipped_chars = 0;
-			return 1;
-		}
-	} else {
-		header_step = 0;
-		skipped_chars++;
-	}
-	return 0;
-}
 struct packet_msg {
 	int id;
 	int len;
@@ -248,24 +228,6 @@ msg_t gnss_thread_geos(void *p) {
     }
     return 0;
 }
-static void packet_detector_1k161(int c)
-{
-}
-static void do_1k161_states(void)
-{
-	static int state = GNSS_STATE_RESET;
-}
-
-msg_t gnss_thread_1k161(void *p) {
-	while(TRUE) {
-		int t, i;
-		do_1k161_states();
-	        t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
-	        for (i = 0; i < t; i++)
-			packet_detector_1k161(gnss_buffer[i]);
-	}
-}
-
 static msg_t geo_thread(void *p)
 {
 	msg_t msg, result;
@@ -343,30 +305,14 @@ static int detect_geos(void)
 {
 	int i, j;
 	int detected = 0;
+	palSetPad(IOPORT1, PIOA_GPS_NRST);
+        chThdSleepMilliseconds(100);
 	k2_usart1_geos();
 	for (i = 0; i < 20; i++) {
 		int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
 		if (t > 0) {
 			for (j = 0; j < t; j++) {
 				if (packet_header_geos(gnss_buffer[j]))
-					detected = 1;
-			}
-		}
-	}
-	return detected;
-}
-
-static int detect_1k161(void)
-{
-	int i, j;
-	int detected = 0;
-	k2_usart1_1k161();
-	for (i = 0; i < 20; i++) {
-		int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
-		if (t > 0) {
-			dbg_hex_dump(gnss_buffer, t);
-			for (j = 0; j < t; j++) {
-				if (packet_header_1k161(gnss_buffer[j]))
 					detected = 1;
 			}
 		}

@@ -98,7 +98,6 @@ int main(void) {
     chSysInit();
     k2_init_serials();
     chprintf((BaseSequentialStream*)&SDDBG, "BOOT\r\n");
-    palSetPad(IOPORT1, PIOA_GPS_NRST);
     
     i2cStart(&I2CD1, &i2cfg);
 
