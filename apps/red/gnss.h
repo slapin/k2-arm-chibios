@@ -10,7 +10,6 @@ typedef struct _status_gnss_t {							// ~~~ ÃÍÑÑ ~~~
 	uint8_t ant_status:2;	//0 - good, 1 - shaded, 2 - failure
 	uint8_t valid :1;
 } status_gnss_t;
-msg_t gnss_thread_geos(void *p);
-msg_t gnss_thread_1k161(void *p);
+void packet_detector_geos(int c);
 int gnss_init(void);
 #endif

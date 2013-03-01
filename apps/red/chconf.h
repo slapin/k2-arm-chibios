@@ -532,4 +532,7 @@
 
 #endif  /* _CHCONF_H_ */
 
+/* Very hard to debug what is needed */
+#define PORT_INT_REQUIRED_STACK         256
+
 /** @} */

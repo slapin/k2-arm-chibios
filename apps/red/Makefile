@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fno-omit-frame-pointer -mabi=apcs-gnu
+  USE_OPT = -Os -ggdb -g3 -fno-omit-frame-pointer -mabi=apcs-gnu
 endif
 
 # C specific options here (added to USE_OPT).

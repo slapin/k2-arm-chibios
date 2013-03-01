@@ -7,7 +7,8 @@
 //
 //---------------------------------------------------------------------------------------
 
-
+#include "ch.h"
+#include "hal.h"
 // #include "config.h"
 // #include "global.h"
 #include "fram.h"
@@ -26,18 +27,19 @@
 #include <string.h>	// memcpy
 #include <stdio.h>
 #include "k2_serial.h"
+#include "chprintf.h"
 
 #define MIN_TIME 0x494ed880
 
-#define DEBUG(a, b, ...) pr_debug(__VA_ARGS__)
-#define DEBUGF(a, b, ...) pr_debug(__VA_ARGS__)
-#define DBGPRINTF(a, b, ...) pr_debug(__VA_ARGS__)
-#define DEBUGCRLF(a, b) pr_debug("\r\n")
+#define DEBUG(a, b, ...) chprintf((BaseSequentialStream*)&SDDBG, __VA_ARGS__)
+#define DEBUGF(a, b, ...) chprintf((BaseSequentialStream*)&SDDBG, __VA_ARGS__)
+#define DBGPRINTF(a, b, ...) chprintf((BaseSequentialStream*)&SDDBG, __VA_ARGS__)
+#define DEBUGCRLF(a, b) chprintf((BaseSequentialStream*)&SDDBG, "\r\n")
 #define CRLF "\r\n"
 #define NoYes(c) (c) ? 'Y':'N'
 #define DBGCONDITION(x, y) 1
 #define DEBUGDUMP_P(x, y, buf, len) dbg_hex_dump(buf, len)
-#define DBGPRINTSTR(x, y, s) pr_debug("%s\r\n", s)
+#define DBGPRINTSTR(x, y, s) chprintf((BaseSequentialStream*)&SDDBG, s)
 
 extern time_t sys_time;
 
@@ -401,7 +403,7 @@ int fram_init(void)
 	offset += fqueue_init(&queue_sdispin, fd, offset, 1/*inum*/, DISP_SIZE, 0/*own*/, qtablebuff, sizeof(qtablebuff));
 	offset += file_sekop_transact_init(&fram_sekop_transaction, fd, offset, 1024/*transact buff size*/);
 	offset += file_datablock_init(&datablock_dispdata, fd, offset, sizeof(struct dispdata));
-	DEBUG(FRAM, NORMAL, "FRAM usage: %d"CRLF, offset);
+	pr_debug("FRAM usage: %d\r\n", offset);
 	return 0;
 }
 
@@ -454,27 +456,20 @@ time_t sdispout_pass_next(void *data, int *size)
 {
 	int tsize = DISP_SIZE, ret;
 	struct dispq_data *d = malloc(DISP_SIZE);
-	pr_debug("Alert: dispdata %p\r\n", d);
 	if (!d)
 		return -1;
 	ret = fqueue_read(&queue_sdispout, 0, 0x7fffffff, d, &tsize);
-	pr_debug("Alert: Got data from queue %p %d\r\n", d, tsize);
-	print_dump(d, tsize);
+	dbg_hex_dump(d, tsize);
 	if (tsize > 0) {
-		pr_debug("Alert: got data time %d %p %d\r\n", ret, d->data, d->d_size);
 		if (d->d_size > DISP_SIZE) {
-			pr_debug("Alert: panic: d_size %d > %d\r\n", d->d_size, DISP_SIZE);
 			*size = 0;
 			free(d);
 			return ret;
 		}
 		memcpy(data, d->data, d->d_size);
 		*size = d->d_size;
-		pr_debug("Alert: size is %d\r\n", *size);
-	} else {
+	} else
 		*size = 0;
-		pr_debug("Alert: zero data from queue\r\n");
-	}
 	free(d);
 	return ret;
 }

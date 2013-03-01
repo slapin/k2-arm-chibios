@@ -64,6 +64,10 @@ static const struct conf_1k161 configs_1k161[] = {
 			{115200, USART_EVEN, BIN_CMD_CHANNEL_SPD_115200 | 4,	BIN_CMD_CHANNEL_PAR_EVEN},	// [19]
 			{115200, USART_ODD, BIN_CMD_CHANNEL_SPD_115200 | 4,	BIN_CMD_CHANNEL_PAR_ODD},	// [20]
 };
+static msg_t mbox_geo_buffer[10];
+static msg_t mbox_misc_buffer[10];
+static MAILBOX_DECL(mbox_geo, mbox_geo_buffer, 10);
+static MAILBOX_DECL(mbox_misc, mbox_misc_buffer, 10);
 
 /* XXX */
 #if 0
@@ -287,8 +291,10 @@ static int packet_header_1k161(int c)
 	if (header[header_step] == c) {
 		header_step++;
 		if (header_step == sizeof(header)) {
+#if 0
 			if (skipped_chars > 0)
 				printf("Skip %d\r\n", skipped_chars);
+#endif
 			header_step = 0;
 			skipped_chars = 0;
 			return 1;
@@ -307,7 +313,49 @@ struct packet_msg {
 	uint8_t data[];
 };
 
-static void packet_detector_1k161(int c)
+static uint16_t cksum_calc(uint16_t oldsum, uint16_t data)
+{
+	int sum = (oldsum + data) & 0x1FFFF;
+	sum +=  (sum >> 16) & 1;
+	return sum & 0xFFFF;
+}
+
+static uint16_t cksum(struct packet_msg *data)
+{
+	int i;
+	uint16_t sum;
+	uint16_t *pdata;
+	int size = (data->len >> 1);
+	sum = cksum_calc(0, 0xf157);
+	sum = cksum_calc(sum, (data->id << 8) | (data->len >> 1));
+	pdata = (uint16_t *)data->data;
+	for (i = 0; i < size; i++, pdata++)
+		sum = cksum_calc(sum, *pdata);
+
+	return sum;
+}
+
+static void process_packet(struct packet_msg *packet)
+{
+	int res;
+	pr_debug("Packet id %d size %d crc %u\r\n", packet->id, packet->len, packet->crc);
+	switch(packet->id) {
+	case 102: /* Consistency warning */
+		res = chMBPost(&mbox_misc, (msg_t)packet, TIME_IMMEDIATE);
+		break;
+	case 149: /* decision */
+	case 152: /* run-time decision data */
+		res = chMBPost(&mbox_geo, (msg_t)packet, TIME_IMMEDIATE);
+		break;
+	default:
+		pr_debug("Packet id %d size %d crc %u\r\n", packet->id, packet->len, packet->crc);
+		pr_debug("CKSUM %u\r\n", cksum(packet));
+		chHeapFree(packet);
+		break;
+	}
+}
+
+void packet_detector_1k161(int c)
 {
 	static int state = 0;
 	static int packetsize = 0;
@@ -335,7 +383,6 @@ static void packet_detector_1k161(int c)
 	case 4: /* CRC high */
 		crc |= (c << 8);
 		state = 5;
-		printf("Packet id %02x size %d crc %u\r\n", packetnum, packetsize * 2, crc);
 		packet = chHeapAlloc(NULL,
 			sizeof(struct packet_msg) + packetsize * 2);
 		if (!packet) {
@@ -358,32 +405,19 @@ static void packet_detector_1k161(int c)
 		}
 		if (state == 6) {
 			packetsize--;
-			if(!packetsize)
-				state = 100;
-			else
+			if(!packetsize) {
+				state = 0;
+				/* Check checksum here */
+				/* see bin_message_checksum() in 1k-161.c */
+				if (cksum(packet) == packet->crc)
+					process_packet(packet);
+				else
+					chHeapFree(packet);
+			} else
 				state = 5;
 		} else
 			state++;
 		break;
-	case 100:
-		/* Check checksum here */
-		/* see bin_message_checksum() in 1k-161.c */
-		chHeapFree(packet);
-		state = 0;
-		break;
-	}
-}
-
-static uint8_t gnss_buffer[1024];
-msg_t gnss_thread_1k161(void *p) {
-	while(TRUE) {
-		int t, i;
-#if 0
-		do_1k161_states();
-#endif
-	        t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
-	        for (i = 0; i < t; i++)
-			packet_detector_1k161(gnss_buffer[i]);
 	}
 }
 
@@ -399,6 +433,7 @@ int detect_1k161(void)
 {
 	int i, j, k, conf;
 	int detected = 0;
+	uint8_t *gnss_buffer = chHeapAlloc(NULL, 512);
 	static SerialConfig us_conf = {
 		38400 /* depends */,
 		AT91C_US_USMODE_NORMAL | AT91C_US_CLKS_CLOCK |
@@ -415,9 +450,8 @@ int detect_1k161(void)
 		sdStop(&SD1);
 		sdStart(&SD1, &us_conf);
 		reset_1k161();
-		printf("conf %d\r\n", conf);
 		for (i = 0; i < 20 && !detected; i++) {
-			int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 500);
+			int t = sdReadTimeout(&SD1, gnss_buffer, 512, 500);
 			if (t > 0) {
 				for (j = 0; j < t; j++) {
 					if (packet_header_1k161(gnss_buffer[j]))
@@ -425,18 +459,14 @@ int detect_1k161(void)
 				}
 				if (!detected)
 					dbg_hex_dump(gnss_buffer, t);
-			} else
-				printf("Read none\r\n");
+			}
 		}
-		printf("i = %d detected = %d\r\n", i, detected);
 		if (detected) {
 			if (conf == 14) {
 				/* TODO: run selftests here */
-				printf("Detected OK\r\n");
 				break;
 			} else {
 				/* TODO: Reconfigure device here */
-				printf("bad conf %d\r\n", conf);
 				continue;
 			}
 		} else {
@@ -444,8 +474,37 @@ int detect_1k161(void)
 			if (conf >=
 				sizeof(configs_1k161)/sizeof(configs_1k161[0]))
 				conf = 0;
-			printf("Not detected\r\n");
 		}
 	}
+	chHeapFree(gnss_buffer);
 	return detected;
 }
+msg_t geo_thread_1k161(void *p)
+{
+	(void)p;
+	msg_t msg, result;
+	struct packet_msg *pkt;
+	while (TRUE) {
+		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
+		pkt = (struct packet_msg *) msg;
+		pr_debug("packet id = %d\n", pkt->id);
+		dbg_hex_dump(pkt->data, pkt->len);
+		chHeapFree(pkt);
+	}
+	return 0;
+}
+msg_t misc_thread_1k161(void *p)
+{
+	(void)p;
+	msg_t msg, result;
+	struct packet_msg *pkt;
+	while (TRUE) {
+		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
+		pkt = (struct packet_msg *) msg;
+		pr_debug("packet id = %d\n", pkt->id);
+		dbg_hex_dump(pkt->data, pkt->len);
+		chHeapFree(pkt);
+	}
+	return 0;
+}
+

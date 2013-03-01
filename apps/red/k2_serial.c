@@ -80,10 +80,13 @@ void dbg_hex_dump(uint8_t *p, int len)
 void pr_debug(const char *p, ...)
 {
 	va_list ap;
+	char * buffer = chHeapAlloc(NULL, 128);
 	chMtxLock(&debug_mutex);
 	va_start(ap, p);
-	vprintf(p, ap);
+	vsnprintf(buffer, 127, p, ap);
+	chprintf((BaseSequentialStream*)&SDDBG, "%s", buffer);
 	va_end(ap);
 	chMtxUnlock();
+	chHeapFree(buffer);
 }
 

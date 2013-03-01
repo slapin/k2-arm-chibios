@@ -13,5 +13,7 @@ enum {
 	GNSS_STATE_SELFTEST_RESULT,
 };
 int detect_1k161(void);
-
+msg_t geo_thread_1k161(void *p);
+msg_t misc_thread_1k161(void *p);
+void packet_detector_1k161(int c);
 #endif

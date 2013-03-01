@@ -17,8 +17,8 @@ static MAILBOX_DECL(mbox_geo, mbox_geo_buffer, 10);
 static MAILBOX_DECL(mbox_tel, mbox_tel_buffer, 10);
 static MAILBOX_DECL(mbox_sat, mbox_sat_buffer, 10);
 static WORKING_AREA(wa_geo, 2048);
-static WORKING_AREA(wa_tel, 256);
-static WORKING_AREA(wa_sat, 256);
+static WORKING_AREA(wa_tel, 128);
+static WORKING_AREA(wa_sat, 128);
 
 status_gnss_t status_gnss;
 static Tgeo geoinfo;
@@ -123,7 +123,7 @@ static void process_packet(struct packet_msg *p)
 		chHeapFree(p);
 	}
 }
-static void packet_detector_geos(int c)
+void packet_detector_geos(int c)
 {
 	static int state = 0;
 	static int packetnum = 0;
@@ -206,28 +206,6 @@ static void packet_detector_geos(int c)
 	}
 }
 
-static uint8_t gnss_buffer[1024];
-
-msg_t gnss_thread_geos(void *p) {
-
-    (void)p;
-    chRegSetThreadName("gnss");
-#if 0
-    init_geos1m();
-#endif
-    while (TRUE) {
-	    int i;
-	    int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
-            // chprintf((BaseSequentialStream*)&SDDBG, "z %02x\r\n", t);
-#if 0
-	    for (i = 0; i < t; i++)
-	    	geos1m_parser_input(buf[i]);
-#endif
-	    for (i = 0; i < t; i++)
-		    packet_detector_geos(gnss_buffer[i]);
-    }
-    return 0;
-}
 static msg_t geo_thread(void *p)
 {
 	msg_t msg, result;
@@ -304,6 +282,7 @@ static msg_t sat_thread(void *p)
 static int detect_geos(void)
 {
 	int i, j;
+	uint8_t *gnss_buffer = chHeapAlloc(NULL, 1024);
 	int detected = 0;
 	palSetPad(IOPORT1, PIOA_GPS_NRST);
         chThdSleepMilliseconds(100);
@@ -317,6 +296,7 @@ static int detect_geos(void)
 			}
 		}
 	}
+	chHeapFree(gnss_buffer);
 	return detected;
 }
 
@@ -337,6 +317,10 @@ int gnss_init(void)
 		chThdCreateStatic(wa_geo, sizeof(wa_geo), NORMALPRIO, geo_thread, NULL);
 		chThdCreateStatic(wa_tel, sizeof(wa_tel), NORMALPRIO, tel_thread, NULL);
 		chThdCreateStatic(wa_sat, sizeof(wa_sat), NORMALPRIO, sat_thread, NULL);
+	}
+	if (use_1k161) {
+		chThdCreateStatic(wa_geo, sizeof(wa_geo), NORMALPRIO, geo_thread_1k161, NULL);
+		chThdCreateStatic(wa_tel, sizeof(wa_tel), NORMALPRIO, misc_thread_1k161, NULL);
 	}
 	if (use_geos)
 		return 1;

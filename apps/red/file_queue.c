@@ -217,19 +217,12 @@ Tfqueue_time fqueue_read(Tfqueue *queue, Tfqueue_time begin, Tfqueue_time end, v
 int fqueue_status(Tfqueue *queue, Tfqueue_time *begin, Tfqueue_time *end) {
 	Tfqueue_time *pcell, min, max;
 	int i, count = 0;
-	printf("bitch 0, queue = %p\r\n", queue);
 	queue->res = FQUEUE_OK;
-	printf("bitch 0.1\r\n");
 	refresh_table(queue);
-	printf("bitch 0.2\r\n");
 	RETURN_IF_ERROR(0);
-	printf("bitch 0.3\r\n");
 	pcell = queue->tbuff;
-	printf("bitch 0.4 end=%p\r\n", end);
 	min = *end;
-	printf("bitch 0.5\r\n");
 	max = *begin;
-	printf("bitch 1\r\n");
 	for(i = 0; i < queue->inum; i++) {
 		Tfqueue_time tim = *pcell;
 		if(cell_in_time(tim, *begin, *end)) {
@@ -239,12 +232,10 @@ int fqueue_status(Tfqueue *queue, Tfqueue_time *begin, Tfqueue_time *end) {
 		}
 		pcell ++;
 	}
-	printf("bitch 2\r\n");
 	if(count) {
 		*begin = min;
 		*end = max;
 	}
-	printf("bitch 3\r\n");
 	return count;
 }
 
