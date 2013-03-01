@@ -33,7 +33,7 @@
 #include "1k161.h"
 
 static WORKING_AREA(wa_blink, 128);
-static WORKING_AREA(wa_gnss, 1024);
+static WORKING_AREA(wa_gnss, 128);
 
 #define EEPROM_PAGE_SIZE        8         /* page size in bytes. Consult datasheet. */
 #define EEPROM_SIZE             8192       /* total amount of memory in bytes */
@@ -67,20 +67,21 @@ struct gnss_thread_config {
 	int buf_size;
 	int read_timeout;
 	void (*packet_detector)(int c);
+	uint8_t header[4];
+	int header_len;
+	uint8_t data[0];
 };
 
-struct gnss_thread_config conf;
 msg_t gnss_thread(void *p) {
-	uint8_t *gnss_buffer = chHeapAlloc(NULL, conf.buf_size);
-	(void)p;
+	struct gnss_thread_config *conf = p;
+    	chprintf((BaseSequentialStream*)&SDDBG, "GNSS thread\r\n");
 	while(TRUE) {
 		int t, i;
-	        t = sdReadTimeout(&SD1, gnss_buffer,
-			conf.buf_size, conf.read_timeout);
+	        t = sdReadTimeout(&SD1, conf->data,
+			conf->buf_size, conf->read_timeout);
 	        for (i = 0; i < t; i++)
-			conf.packet_detector(gnss_buffer[i]);
+			conf->packet_detector(conf->data[i]);
 	}
-        chHeapFree(gnss_buffer);
 	return 0;
 }
 
@@ -90,6 +91,7 @@ msg_t gnss_thread(void *p) {
 int main(void) {
    int status;
    uint8_t ch;
+   struct gnss_thread_config *conf;
 
    int j, rv;
     /*
@@ -117,21 +119,27 @@ int main(void) {
     chThdCreateStatic(wa_blink, sizeof(wa_blink), NORMALPRIO, blink_thread, NULL);
 
     /* FIXME */
+    conf = NULL;
     switch(rv) {
     case 1:
-        conf.buf_size = 1024;
-	conf.read_timeout = 250;
-	conf.packet_detector = packet_detector_geos;
-        chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
+    	conf = chHeapAlloc(NULL, sizeof(struct gnss_thread_config) + 1024);
+        chprintf((BaseSequentialStream*)&SDDBG, "GEOS\r\n");
+        conf->buf_size = 1024;
+	conf->read_timeout = 250;
+	conf->packet_detector = packet_detector_geos;
 	break;
     case 2:
 /* Danger! Don't do > 512 bytes! */
-        conf.buf_size = 512;
-	conf.read_timeout = 500;
-	conf.packet_detector = packet_detector_1k161;
-        chThdCreateStatic(wa_gnss, sizeof(wa_gnss), NORMALPRIO, gnss_thread, NULL);
+    	conf = chHeapAlloc(NULL, sizeof(struct gnss_thread_config) + 512);
+        chprintf((BaseSequentialStream*)&SDDBG, "1K-161\r\n");
+        conf->buf_size = 512;
+	conf->read_timeout = 500;
+	conf->packet_detector = packet_detector_1k161;
 	break;
     }
+    if (conf)
+    	chThdCreateStatic(wa_gnss, sizeof(wa_gnss),
+		NORMALPRIO + 10, gnss_thread, conf);
 
     /*
      * Normal main() thread activity.

@@ -10,13 +10,26 @@
 #include "1k161.h"
 #include "geo.h"
 
-static msg_t mbox_geo_buffer[10];
-static msg_t mbox_tel_buffer[10];
-static msg_t mbox_sat_buffer[10];
-static MAILBOX_DECL(mbox_geo, mbox_geo_buffer, 10);
-static MAILBOX_DECL(mbox_tel, mbox_tel_buffer, 10);
-static MAILBOX_DECL(mbox_sat, mbox_sat_buffer, 10);
-static WORKING_AREA(wa_geo, 2048);
+
+#define DECL_PACKET_QUEUE(p, s) \
+	static msg_t mbox_ ## p ## _buffer[s]; \
+	MAILBOX_DECL(mbox_ ## p, mbox_ ## p ## _buffer, s); \
+	int post_ ## p (void *packet)						\
+	{									\
+		return chMBPost(&mbox_ ## p, (msg_t)packet, TIME_IMMEDIATE);	\
+	}									\
+	msg_t fetch_ ## p (void) 						\
+	{									\
+		msg_t msg, result; 						\
+		result = chMBFetch(&mbox_ ## p, &msg, TIME_INFINITE);		\
+		return msg;							\
+	}
+
+DECL_PACKET_QUEUE(geo, 10);
+DECL_PACKET_QUEUE(tel, 10);
+DECL_PACKET_QUEUE(sat, 10);
+DECL_PACKET_QUEUE(misc, 10);
+static WORKING_AREA(wa_geo, 128);
 static WORKING_AREA(wa_tel, 128);
 static WORKING_AREA(wa_sat, 128);
 
@@ -74,14 +87,13 @@ void decision_complete(void)
 #endif
 }
 
-static int packet_header_geos(int c)
+int packet_header(int c, const uint8_t *header, int header_len)
 {
-	char header[] = "PSGG";
 	static int header_step = 0;
 	static int skipped_chars = 0;
 	if (header[header_step] == c) {
 		header_step++;
-		if (header_step == sizeof(header) - 1) {
+		if (header_step == header_len) {
 			if (skipped_chars > 0)
 				printf("Skip %d\r\n", skipped_chars);
 			header_step = 0;
@@ -104,13 +116,13 @@ static void process_packet(struct packet_msg *p)
 	int res;
 	switch(p->id) {
 	case 0x20: /* Geodata */
-		res = chMBPost(&mbox_geo, (msg_t)p, TIME_IMMEDIATE);
+		res = post_geo(p);
 		break;
 	case 0x21: /* Telemetry */
-		res = chMBPost(&mbox_tel, (msg_t)p, TIME_IMMEDIATE);
+		res = post_tel(p);
 		break;
 	case 0x22: /* Sats channels */
-		res = chMBPost(&mbox_sat, (msg_t)p, TIME_IMMEDIATE);
+		res = post_sat(p);
 		break;
 	default:
 		pr_debug("bad %02x\r\n", p->id);
@@ -135,7 +147,7 @@ void packet_detector_geos(int c)
 		crc = geos_crc(c, 0);
 	switch(state) {
 	case 0:
-		if (packet_header_geos(c)) {
+		if (packet_header(c, (uint8_t *)"PSGG", 4)) {
 			state = 1;
 			geos_crc('P', 1);
 			geos_crc('S', 0);
@@ -212,7 +224,7 @@ static msg_t geo_thread(void *p)
 	struct packet_msg *pkt;
 	(void)p;
 	while (TRUE) {
-		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
+		msg = fetch_geo();
 		pkt = (struct packet_msg *) msg;
 		Tgeos1m_packet_geographic *Pmsg = (Tgeos1m_packet_geographic *)pkt->data;
 		double time_s_int;
@@ -254,7 +266,7 @@ static msg_t tel_thread(void *p)
 	(void)p;
 	Tgeos1m_packet_cur_telemetry *Pmsg;
 	while (TRUE) {
-		result = chMBFetch(&mbox_tel, &msg, TIME_INFINITE);
+		msg = fetch_tel();
 		pkt = (struct packet_msg *) msg;
 		chprintf((BaseSequentialStream *)&SDDBG, "TELEMETRY\r\n");
 		Pmsg = (Tgeos1m_packet_cur_telemetry *)pkt->data;
@@ -271,7 +283,7 @@ static msg_t sat_thread(void *p)
 	struct packet_msg *pkt;
 	(void)p;
 	while (TRUE) {
-		result = chMBFetch(&mbox_sat, &msg, TIME_INFINITE);
+		msg = fetch_sat();
 		pkt = (struct packet_msg *) msg;
 		chprintf((BaseSequentialStream *)&SDDBG, "SAT\r\n");
 		chHeapFree(pkt);
@@ -291,7 +303,8 @@ static int detect_geos(void)
 		int t = sdReadTimeout(&SD1, gnss_buffer, 1024, 250);
 		if (t > 0) {
 			for (j = 0; j < t; j++) {
-				if (packet_header_geos(gnss_buffer[j]))
+				if (packet_header(gnss_buffer[j],
+					(uint8_t *) "PSGG", 4))
 					detected = 1;
 			}
 		}

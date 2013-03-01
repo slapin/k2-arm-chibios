@@ -64,11 +64,6 @@ static const struct conf_1k161 configs_1k161[] = {
 			{115200, USART_EVEN, BIN_CMD_CHANNEL_SPD_115200 | 4,	BIN_CMD_CHANNEL_PAR_EVEN},	// [19]
 			{115200, USART_ODD, BIN_CMD_CHANNEL_SPD_115200 | 4,	BIN_CMD_CHANNEL_PAR_ODD},	// [20]
 };
-static msg_t mbox_geo_buffer[10];
-static msg_t mbox_misc_buffer[10];
-static MAILBOX_DECL(mbox_geo, mbox_geo_buffer, 10);
-static MAILBOX_DECL(mbox_misc, mbox_misc_buffer, 10);
-
 /* XXX */
 #if 0
 #define print_gnss(...)		//{	if(!vt100_is_present){	printf(str_gnss);	printf(__VA_ARGS__);	}}
@@ -283,29 +278,6 @@ static void do_1k161_states(void)
 }
 #endif
 
-static int packet_header_1k161(int c)
-{
-	char header[] = {0x57, 0xf1};
-	static int header_step = 0;
-	static int skipped_chars = 0;
-	if (header[header_step] == c) {
-		header_step++;
-		if (header_step == sizeof(header)) {
-#if 0
-			if (skipped_chars > 0)
-				printf("Skip %d\r\n", skipped_chars);
-#endif
-			header_step = 0;
-			skipped_chars = 0;
-			return 1;
-		}
-	} else {
-		header_step = 0;
-		skipped_chars++;
-	}
-	return 0;
-}
-
 struct packet_msg {
 	int id;
 	int len;
@@ -335,17 +307,16 @@ static uint16_t cksum(struct packet_msg *data)
 	return sum;
 }
 
-static void process_packet(struct packet_msg *packet)
+static __attribute__((noinline)) void process_packet_1k161(struct packet_msg *packet)
 {
 	int res;
-	pr_debug("Packet id %d size %d crc %u\r\n", packet->id, packet->len, packet->crc);
 	switch(packet->id) {
 	case 102: /* Consistency warning */
-		res = chMBPost(&mbox_misc, (msg_t)packet, TIME_IMMEDIATE);
+		res = post_misc(packet);
 		break;
 	case 149: /* decision */
 	case 152: /* run-time decision data */
-		res = chMBPost(&mbox_geo, (msg_t)packet, TIME_IMMEDIATE);
+		res = post_geo(packet);
 		break;
 	default:
 		pr_debug("Packet id %d size %d crc %u\r\n", packet->id, packet->len, packet->crc);
@@ -357,6 +328,7 @@ static void process_packet(struct packet_msg *packet)
 
 void packet_detector_1k161(int c)
 {
+	const uint8_t header[] = {0x57, 0xf1};
 	static int state = 0;
 	static int packetsize = 0;
 	static int packetnum = 0;
@@ -365,7 +337,7 @@ void packet_detector_1k161(int c)
 	static int packet_count = 0;
 	switch (state) {
 	case 0: /* Header magic */
-		if(packet_header_1k161(c))
+		if(packet_header(c, header, 2))
 			state = 1;
 		break;
 	case 1: /* Size */
@@ -386,7 +358,7 @@ void packet_detector_1k161(int c)
 		packet = chHeapAlloc(NULL,
 			sizeof(struct packet_msg) + packetsize * 2);
 		if (!packet) {
-			printf("Drop\r\n");
+			pr_debug("Drop\r\n");
 			state = 0;
 			break;
 		}
@@ -410,7 +382,7 @@ void packet_detector_1k161(int c)
 				/* Check checksum here */
 				/* see bin_message_checksum() in 1k-161.c */
 				if (cksum(packet) == packet->crc)
-					process_packet(packet);
+					process_packet_1k161(packet);
 				else
 					chHeapFree(packet);
 			} else
@@ -431,6 +403,7 @@ void reset_1k161(void)
 
 int detect_1k161(void)
 {
+	const uint8_t header[] = {0x57, 0xf1};
 	int i, j, k, conf;
 	int detected = 0;
 	uint8_t *gnss_buffer = chHeapAlloc(NULL, 512);
@@ -454,7 +427,8 @@ int detect_1k161(void)
 			int t = sdReadTimeout(&SD1, gnss_buffer, 512, 500);
 			if (t > 0) {
 				for (j = 0; j < t; j++) {
-					if (packet_header_1k161(gnss_buffer[j]))
+					if (packet_header(gnss_buffer[j],
+						header, 2))
 						detected = 1;
 				}
 				if (!detected)
@@ -485,9 +459,9 @@ msg_t geo_thread_1k161(void *p)
 	msg_t msg, result;
 	struct packet_msg *pkt;
 	while (TRUE) {
-		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
+		msg = fetch_geo();
 		pkt = (struct packet_msg *) msg;
-		pr_debug("packet id = %d\n", pkt->id);
+		pr_debug("packet id = %d\r\n", pkt->id);
 		dbg_hex_dump(pkt->data, pkt->len);
 		chHeapFree(pkt);
 	}
@@ -499,9 +473,9 @@ msg_t misc_thread_1k161(void *p)
 	msg_t msg, result;
 	struct packet_msg *pkt;
 	while (TRUE) {
-		result = chMBFetch(&mbox_geo, &msg, TIME_INFINITE);
+		msg = fetch_misc();
 		pkt = (struct packet_msg *) msg;
-		pr_debug("packet id = %d\n", pkt->id);
+		pr_debug("packet id = %d\r\n", pkt->id);
 		dbg_hex_dump(pkt->data, pkt->len);
 		chHeapFree(pkt);
 	}

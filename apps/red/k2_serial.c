@@ -84,7 +84,9 @@ void pr_debug(const char *p, ...)
 	chMtxLock(&debug_mutex);
 	va_start(ap, p);
 	vsnprintf(buffer, 127, p, ap);
+#if 0
 	chprintf((BaseSequentialStream*)&SDDBG, "%s", buffer);
+#endif
 	va_end(ap);
 	chMtxUnlock();
 	chHeapFree(buffer);

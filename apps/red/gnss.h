@@ -12,4 +12,13 @@ typedef struct _status_gnss_t {							// ~~~ ÃÍÑÑ ~~~
 } status_gnss_t;
 void packet_detector_geos(int c);
 int gnss_init(void);
+int packet_header(int c, const uint8_t *header, int header_len);
+#define REF_PACKET_QUEUE(p) 							\
+	int post_ ## p (void *p);						\
+	msg_t fetch_ ## p (void);
+
+REF_PACKET_QUEUE(geo);
+REF_PACKET_QUEUE(tel);
+REF_PACKET_QUEUE(sat);
+REF_PACKET_QUEUE(misc);
 #endif
