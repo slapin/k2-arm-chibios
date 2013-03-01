@@ -113,6 +113,14 @@ static const SerialConfig default_config = {
  * @param[in] config    the architecture-dependent serial driver configuration
  */
 
+static void shuffle_rx(SerialDriver *sdp)
+{
+  sdp->dma_rx_index ^= 1;
+}
+static void shuffle_tx(SerialDriver *sdp)
+{
+  sdp->dma_tx_index ^= 1;
+}
 static void reset_rx_dma(SerialDriver *sdp)
 {
   AT91PS_USART u = sdp->usart;
@@ -121,14 +129,12 @@ static void reset_rx_dma(SerialDriver *sdp)
   u->US_RCR = sizeof(sdp->dma_buf_rx[0]);
   u->US_RPR = (unsigned long) sdp->dma_buf_rx[sdp->dma_rx_index];
   u->US_PTCR = AT91C_PDC_RXTEN;
-  sdp->dma_rx_index ^= 1;
 }
 static void set_next_rx_dma(SerialDriver *sdp)
 {
   AT91PS_USART u = sdp->usart;
   u->US_RNCR = sizeof(sdp->dma_buf_rx[0]);
   u->US_RNPR = (unsigned long) sdp->dma_buf_rx[sdp->dma_rx_index];
-  sdp->dma_rx_index ^= 1;
 }
 static void reset_tx_dma(SerialDriver *sdp, int size)
 {
@@ -141,14 +147,12 @@ static void reset_tx_dma(SerialDriver *sdp, int size)
   	u->US_PTCR = AT91C_PDC_TXTEN;
   else
 	u->US_PTCR = AT91C_PDC_TXTDIS;
-  sdp->dma_tx_index ^= 1;
 }
 static void set_next_tx_dma(SerialDriver *sdp, int size)
 {
   AT91PS_USART u = sdp->usart;
   u->US_TNCR = size;
   u->US_TNPR = (unsigned long) sdp->dma_buf_tx[sdp->dma_tx_index];
-  sdp->dma_tx_index ^= 1;
 }
 
 static int send_data(SerialDriver *sdp)
@@ -168,6 +172,8 @@ static int send_data(SerialDriver *sdp)
 	} else {
 		sdp->dma_buf_tx[sdp->dma_tx_index][size] = (uint8_t)b;
 		size++;
+		if (size >= sizeof(sdp->dma_buf_tx[0]))
+			break;
 	}
     }
     chSysUnlockFromIsr();
@@ -176,6 +182,8 @@ static int send_data(SerialDriver *sdp)
 
 static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   AT91PS_USART u = sdp->usart;
+  sdp->dma_rx_index = 0;
+  sdp->dma_tx_index = 0;
 
   /* Disables IRQ sources and stop operations.*/
   u->US_IDR = 0xFFFFFFFF;
@@ -206,8 +214,6 @@ static void usart_init(SerialDriver *sdp, const SerialConfig *config) {
   if (sdp != &SDDBG)
     reset_rx_dma(sdp);
   reset_tx_dma(sdp, 0);
-  sdp->dma_rx_index = 0;
-  sdp->dma_tx_index = 0;
   if (sdp != &SDDBG)
     u->US_PTCR = AT91C_PDC_RXTEN;
 
@@ -297,7 +303,7 @@ void sd_lld_serve_interrupt(SerialDriver *sdp)
   int isdbgu = sdp == &SDDBG;
   csr = u->US_CSR;
 
-  if (csr & AT91C_US_RXRDY && isdbgu) {
+  if (isdbgu && csr & AT91C_US_RXRDY) {
     chSysLockFromIsr();
     sdIncomingDataI(sdp, u->US_RHR);
     chSysUnlockFromIsr();
@@ -305,22 +311,27 @@ void sd_lld_serve_interrupt(SerialDriver *sdp)
   if (csr & AT91C_US_RXBUFF && !isdbgu) {
 	  accept_data(sdp);
 	  reset_rx_dma(sdp);
+	  shuffle_rx(sdp);
   } else if (csr & AT91C_US_TIMEOUT && !isdbgu) {
 	  accept_data(sdp);
 	  reset_rx_dma(sdp);
+	  shuffle_rx(sdp);
   } else if (csr & AT91C_US_ENDRX && !isdbgu) {
 	  accept_data(sdp);
 	  set_next_rx_dma(sdp);
+	  shuffle_rx(sdp);
   }
   if (csr & AT91C_US_TXBUFE) {
 	  int size = send_data(sdp);
 	  if (size > 0) {
 		  reset_tx_dma(sdp, size);
+                  shuffle_tx(sdp);
 	  }
   } else if (csr & AT91C_US_ENDTX) {
 	  int size = send_data(sdp);
 	  if (size > 0) {
 		  set_next_tx_dma(sdp, size);
+                  shuffle_tx(sdp);
 	  }
   }
   csr &= (AT91C_US_OVRE | AT91C_US_FRAME | AT91C_US_PARE | AT91C_US_RXBRK);
