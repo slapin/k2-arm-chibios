@@ -30,7 +30,7 @@ DECL_PACKET_QUEUE(tel, 10);
 DECL_PACKET_QUEUE(sat, 10);
 DECL_PACKET_QUEUE(misc, 10);
 static WORKING_AREA(wa_geo, 128);
-static WORKING_AREA(wa_tel, 128);
+static WORKING_AREA(wa_tel, 208);
 static WORKING_AREA(wa_sat, 128);
 
 status_gnss_t status_gnss;
@@ -94,8 +94,10 @@ int packet_header(int c, const uint8_t *header, int header_len)
 	if (header[header_step] == c) {
 		header_step++;
 		if (header_step == header_len) {
+#if 0
 			if (skipped_chars > 0)
 				printf("Skip %d\r\n", skipped_chars);
+#endif
 			header_step = 0;
 			skipped_chars = 0;
 			return 1;
@@ -332,8 +334,12 @@ int gnss_init(void)
 		chThdCreateStatic(wa_sat, sizeof(wa_sat), NORMALPRIO, sat_thread, NULL);
 	}
 	if (use_1k161) {
+		chThdCreateFromHeap(NULL, 128, NORMALPRIO, geo_thread_1k161, NULL);
+		chThdCreateFromHeap(NULL, 208, NORMALPRIO, misc_thread_1k161, NULL);
+#if 0
 		chThdCreateStatic(wa_geo, sizeof(wa_geo), NORMALPRIO, geo_thread_1k161, NULL);
 		chThdCreateStatic(wa_tel, sizeof(wa_tel), NORMALPRIO, misc_thread_1k161, NULL);
+#endif
 	}
 	if (use_geos)
 		return 1;

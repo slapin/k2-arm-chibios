@@ -34,6 +34,8 @@ static const SerialConfig dbgu_config = {
 	  AT91C_US_CHRL_8_BITS | AT91C_US_PAR_NONE | AT91C_US_NBSTOP_1_BIT
 };
 static struct Mutex debug_mutex;
+static char dbg_buffer[2][128];
+static int dbg_buffer_index = 0;
 void k2_init_serials(void)
 {
     chMtxInit(&debug_mutex);
@@ -80,15 +82,10 @@ void dbg_hex_dump(uint8_t *p, int len)
 void pr_debug(const char *p, ...)
 {
 	va_list ap;
-	char * buffer = chHeapAlloc(NULL, 128);
-	chMtxLock(&debug_mutex);
 	va_start(ap, p);
-	vsnprintf(buffer, 127, p, ap);
-#if 0
-	chprintf((BaseSequentialStream*)&SDDBG, "%s", buffer);
-#endif
+	vsnprintf(dbg_buffer[dbg_buffer_index], sizeof(dbg_buffer[0]), p, ap);
+	chprintf((BaseSequentialStream*)&SDDBG, "%s", dbg_buffer[dbg_buffer_index]);
+	dbg_buffer_index ^= 1;
 	va_end(ap);
-	chMtxUnlock();
-	chHeapFree(buffer);
 }
 

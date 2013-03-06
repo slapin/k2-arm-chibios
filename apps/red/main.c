@@ -33,7 +33,7 @@
 #include "1k161.h"
 
 static WORKING_AREA(wa_blink, 128);
-static WORKING_AREA(wa_gnss, 128);
+static WORKING_AREA(wa_gnss, 256);
 
 #define EEPROM_PAGE_SIZE        8         /* page size in bytes. Consult datasheet. */
 #define EEPROM_SIZE             8192       /* total amount of memory in bytes */
@@ -81,6 +81,7 @@ msg_t gnss_thread(void *p) {
 			conf->buf_size, conf->read_timeout);
 	        for (i = 0; i < t; i++)
 			conf->packet_detector(conf->data[i]);
+		pr_debug(">\r\n");
 	}
 	return 0;
 }

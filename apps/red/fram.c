@@ -96,12 +96,6 @@ static Tfqueue			queue_diagsekop;	//
 static Tfqueue			queue_sdispin, queue_sdispout;	//
        Tfsekop_transact		fram_sekop_transaction;		// транзакция от СЕКОП
 
-/* XXX Chibios XXX */
-#if 0
-Ttimer timer_sekop_trasact_status;
-#endif
-
-
 #define RETURN_IF_ERROR(...)	if(queue->res != FQUEUE_OK){return __VA_ARGS__;}
 
 static int queue_from_tag(TML_TAG tag, Tfqueue **queue)
@@ -320,18 +314,13 @@ static void AWC_QCMD_handler(void *data, int size) {
 }
 #endif
 
-
+/* Sekop transaction status check timer */
+static VirtualTimer sekopt_vt;
+static WORKING_AREA(wa_sekopt, 128);
 
 /* XXX Chibios timers XXX */
-#if 0
-void sekop_transact_timer_handler(void *ctx)
+msg_t sekop_timer_thread(void *p)
 {
-	DEBUG(FRAM, NORMAL, "send SEKOP transaction status to WC"CRLF);
-	timer_set(timer_sekop_trasact_status, 30*1000, sekop_transact_timer_handler, NULL);
-	timer_start(timer_sekop_trasact_status);
-	int last_pnum, size;
-	time_t iscomplete;
-	file_sekop_transact_status(&fram_sekop_transaction, &last_pnum, &size, &iscomplete);
 #pragma pack(push, _Struct, 1)
 	struct {
 		time_t		comp;	//!0 = all packets collected
@@ -339,12 +328,31 @@ void sekop_transact_timer_handler(void *ctx)
 		int8_t		pnum;	//number of last written packet
 	} status;
 #pragma pack(pop, _Struct)
+	int last_pnum, size;
+	time_t iscomplete;
+	DEBUG(FRAM, NORMAL, "send SEKOP transaction status to WC"CRLF);
+	file_sekop_transact_status(&fram_sekop_transaction, &last_pnum, &size, &iscomplete);
 	status.pnum = last_pnum;
 	status.size = size;
 	status.comp = iscomplete;
+#if 0
 	awc_send_msg(AWC_STRANSACT_STATUS, &status, sizeof(status));
-}
 #endif
+	return 0;
+}
+
+void sekop_transact_timer_handler(void *ctx)
+{
+	Thread *th;
+	chSysLockFromIsr();
+	if (chVTIsArmedI(&sekopt_vt))
+		chVTResetI(&sekopt_vt);
+	chVTSetI(&sekopt_vt, MS2ST(30 * 1000), sekop_transact_timer_handler, ctx);
+	th = chThdCreateI(&wa_sekopt, sizeof(wa_sekopt),
+		NORMALPRIO, sekop_timer_thread, NULL);
+	chThdResumeI(th);
+	chSysUnlockFromIsr();
+}
 
 /* XXX Chibios AWC XXX */
 #if 0
@@ -581,11 +589,14 @@ void fram_open(void)
 		timer_start(timer_sekop_trasact_status);
 		DEBUG(FRAM, NORMAL, "SEKOP transaction timer registered on id=%d"CRLF, timer_sekop_trasact_status);
 #endif
-		
+		chSysLock();
+		if (chVTIsArmedI(&sekopt_vt))
+			chVTResetI((&sekopt_vt));
+		chVTSetI(&sekopt_vt, MS2ST(60 * 1000),
+			sekop_transact_timer_handler, NULL);
+		chSysUnlock();
 	} else
 		DEBUGF(FRAM, NORMAL, "fatal: chip not present"CRLF);
-	
-	
 	// read last uptime
 	Tfram_arm_uptime *uptime = (void*)reply_buff;
 	DEBUG(FRAM, NORMAL, "read uptime data block:" CRLF);

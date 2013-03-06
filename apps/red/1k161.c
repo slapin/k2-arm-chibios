@@ -5,6 +5,7 @@
 #include "k2_serial.h"
 #include "gnss.h"
 #include "1k161.h"
+#include "1k161-msg.h"
 
 #define	BIN_CMD_CHANNEL_SPD_4800	0
 #define	BIN_CMD_CHANNEL_SPD_9600	1
@@ -310,7 +311,9 @@ static uint16_t cksum(struct packet_msg *data)
 static __attribute__((noinline)) void process_packet_1k161(struct packet_msg *packet)
 {
 	int res;
+	pr_debug("Packet id %d size %d crc %u\r\n", packet->id, packet->len, packet->crc);
 	switch(packet->id) {
+	case 101: /* Selt test */
 	case 102: /* Consistency warning */
 		res = post_misc(packet);
 		break;
@@ -467,6 +470,23 @@ msg_t geo_thread_1k161(void *p)
 	}
 	return 0;
 }
+
+static void msg_101_parse(void *p, uint8_t *pkt, int len)
+{
+	Tbin_test_self_msg_new *ptr;
+	ptr = (Tbin_test_self_msg_new *) pkt;
+	pr_debug("101: summary = %08x\r\n", ptr->summary);
+}
+static void msg_102_parse(void *p, uint8_t *pkt, int len)
+{
+	Tbin_msg_warning *ptr = pkt;
+	if (ptr->status)
+		pr_debug("mpv: %d ctrl: %d\r\n",
+			ptr->status & 3, (ptr->status >> 2) & 1);
+	else
+		pr_debug("0\r\n");
+}
+
 msg_t misc_thread_1k161(void *p)
 {
 	(void)p;
@@ -475,8 +495,18 @@ msg_t misc_thread_1k161(void *p)
 	while (TRUE) {
 		msg = fetch_misc();
 		pkt = (struct packet_msg *) msg;
-		pr_debug("packet id = %d\r\n", pkt->id);
-		dbg_hex_dump(pkt->data, pkt->len);
+		switch(pkt->id) {
+			case 101:
+				msg_101_parse(p, pkt->data, pkt->len);
+				break;
+			case 102:
+				msg_102_parse(p, pkt->data, pkt->len);
+				break;
+			default:
+				pr_debug("packet id = %d\r\n", pkt->id);
+				dbg_hex_dump(pkt->data, pkt->len);
+				break;
+		}
 		chHeapFree(pkt);
 	}
 	return 0;
