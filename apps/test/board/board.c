@@ -93,22 +93,23 @@ void boardInit(void) {
    */
   palClearPad(IOPORT1, PIOA_LED1);
   palSetPadMode(IOPORT1, PIOA_LED1, PAL_MODE_OUTPUT_PUSHPULL);
-  palClearPad(IOPORT1, PIOA_LED2);
-  palSetPadMode(IOPORT1, PIOA_LED2, PAL_MODE_OUTPUT_PUSHPULL);
 
   /*
    * buttons setup.
    */
   palSetGroupMode(IOPORT1, PIOA_B1_MASK | PIOA_B2_MASK, 0, PAL_MODE_INPUT);
 
-  /*
-   * MMC/SD slot setup.
-   */
-  palSetGroupMode(IOPORT1,
-                  PIOA_MMC_WP_MASK | PIOA_MMC_CP_MASK,
-                  0,
-                  PAL_MODE_INPUT);
-
+  /* Software SPI setup */
+	palSetGroupMode(IOPORT1, 
+                 PIOA_SPI_MISO_MASK,
+				 0,
+				 PAL_MODE_OUTPUT_PUSHPULL);
+	palSetGroupMode(IOPORT1, 
+                 PIOA_SPI_NCS_MASK |
+                 PIOA_SPI_MOSI_MASK |
+                 PIOA_SPI_SCK_MASK,
+				 0,
+				 PAL_MODE_INPUT);
   /*
    * PIT Initialization.
    */

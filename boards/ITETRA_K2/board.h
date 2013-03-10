@@ -70,6 +70,25 @@
 #define PIOA_GPS_OTKAZ_MASK	(1 << PIOA_GPS_OTKAZ)
 #define PIOA_WCOM_INT		14
 #define PIOA_WCOM_INT_MASK	(1 << PIOA_WCOM_INT)
+
+/* Software SPI */
+
+// slave NCS input 
+#define PIOA_SPI_NCS  		11
+#define PIOA_SPI_NCS_MASK	(1 << PIOA_SPI_NCS)
+
+// slave MOSI input 
+#define PIOA_SPI_MOSI 		15
+#define PIOA_SPI_MOSI_MASK	(1 << PIOA_SPI_MOSI)
+
+// slave MISO output
+#define PIOA_SPI_MISO 		16
+#define PIOA_SPI_MISO_MASK	(1 << PIOA_SPI_MISO)
+
+// slave SCK input 
+#define PIOA_SPI_SCK  		17
+#define PIOA_SPI_SCK_MASK	(1 << PIOA_SPI_SCK)
+
 /* Alarm key pin */
 #define PIOA_ALARM		18
 #define PIOA_ALARM_MASK		(1 << PIOA_ALARM)

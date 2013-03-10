@@ -94,7 +94,8 @@ void boardInit(void) {
 				 PIOA_GPS_PIN1_MASK | 
 				 PIOA_WCOM_INT_MASK |
 				 PIOA_PV_PWEN_MASK |
-				 PIOA_LED_GPSACT_MASK,
+				 PIOA_LED_GPSACT_MASK |
+                 PIOA_SPI_MISO_MASK,
 				 0,
 				 PAL_MODE_OUTPUT_PUSHPULL);
 	palSetGroupMode(IOPORT1, PIOA_GPS_ANTSTAT_MASK |
@@ -102,7 +103,10 @@ void boardInit(void) {
 				 PIOA_GPS_OTKAZ |
 				 PIOA_ALARM_MASK |
 				 PIOA_GPS_PPS_MASK |
-				 PIOA_GPS_POUT1_MASK,
+				 PIOA_GPS_POUT1_MASK |
+                 PIOA_SPI_NCS_MASK |
+                 PIOA_SPI_MOSI_MASK |
+                 PIOA_SPI_SCK_MASK,
 				 0,
 				 PAL_MODE_INPUT);
 	palSetGroupMode(IOPORT2, PIOB_KF0B_SDAT_MASK |

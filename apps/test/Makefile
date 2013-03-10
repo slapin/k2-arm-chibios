@@ -53,7 +53,7 @@ include $(CHIBIOS)/os/ports/GCC/ARM/AT91SAM7/port.mk
 include $(CHIBIOS)/os/kernel/kernel.mk
 
 # Define linker script file here
-LDSCRIPT= $(PORTLD)/AT91SAM7S256.ld
+LDSCRIPT= board/AT91SAM7S256.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -63,6 +63,7 @@ CSRC = $(PORTSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
 	   $(CHIBIOS)/os/various/chprintf.c \
+	   sspi.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global

@@ -54,8 +54,6 @@
  */
 #define PIOA_LED1               18
 #define PIOA_LED1_MASK          (1 << PIOA_LED1_MASK)
-#define PIOA_LED2               17
-#define PIOA_LED2_MASK          (1 << PIOA_LED2_MASK)
 #define PIOA_B1                 19
 #define PIOA_B1_MASK            (1 << PIOA_B1)
 #define PIOA_B2                 20
@@ -67,10 +65,24 @@
 
 #define PIOA_MMC_WP             25
 #define PIOA_MMC_WP_MASK        (1 << PIOA_MMC_WP)
-#define PIOA_MMC_CP             15
-#define PIOA_MMC_CP_MASK        (1 << PIOA_MMC_CP)
-#define PIOA_MMC_NPCS0          11
-#define PIOA_MMC_NPCS0_MASK     (1 << PIOA_MMC_NPCS0_MASK)
+
+/* Software SPI */
+
+// slave NCS input 
+#define PIOA_SPI_NCS  		11
+#define PIOA_SPI_NCS_MASK	(1 << PIOA_SPI_NCS)
+
+// slave MOSI input 
+#define PIOA_SPI_MOSI 		15
+#define PIOA_SPI_MOSI_MASK	(1 << PIOA_SPI_MOSI)
+
+// slave MISO output
+#define PIOA_SPI_MISO 		16
+#define PIOA_SPI_MISO_MASK	(1 << PIOA_SPI_MISO)
+
+// slave SCK input 
+#define PIOA_SPI_SCK  		17
+#define PIOA_SPI_SCK_MASK	(1 << PIOA_SPI_SCK)
 
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus

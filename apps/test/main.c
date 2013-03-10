@@ -21,6 +21,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
+#include "sspi.h"
 
 static WORKING_AREA(waThread1, 128);
 static msg_t Thread1(void *p) {
@@ -28,18 +29,17 @@ static msg_t Thread1(void *p) {
     (void)p;
     chRegSetThreadName("blinker");
     while (TRUE) {
+        /*
         palClearPad(IOPORT1, PIOA_LED1);
         chThdSleepMilliseconds(100);
         palSetPad(IOPORT1, PIOA_LED1);
-        chThdSleepMilliseconds(100);
-        palClearPad(IOPORT1, PIOA_LED2);
-        chThdSleepMilliseconds(100);
-        palSetPad(IOPORT1, PIOA_LED2);
+        */
         chThdSleepMilliseconds(800);
     }
     return 0;
 }
 
+int cnt = 0;
 /*
  * Application entry point.
  */
@@ -61,16 +61,22 @@ int main(void) {
     sdStart(&SD1, NULL);
     sdStart(&SD2, NULL);
 
+
+    sspiInit();
+
     /*
      * Creates the blinker thread.
      */
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
+    chprintf((BaseSequentialStream*)&SD1, "\r\n*** Init\r\n");
     /*
      * Normal main() thread activity.
      */
-    int cnt = 0;
     while (TRUE) {
+        chSemWaitTimeout(&semSspi, MS2ST(1000));
+        chprintf((BaseSequentialStream*)&SD1, "SPI: 0x%.2x (cnt:%d)\r\n", sspi_byte, cnt++);
+#if 0
         chThdSleepMilliseconds(500);
         if (!palReadPad(IOPORT1, PIOA_B1))
             sdWrite(&SD1, (uint8_t *)"Hello World!\r\n", 14);
@@ -79,11 +85,12 @@ int main(void) {
             TestThread(&SD1);
             */
         if(cnt & 1) {
-            chprintf((BaseChannel*)&SD1, "COM1: %d\r\n", cnt);
+            chprintf((BaseSequentialStream*)&SD1, "COM1: %d\r\n", cnt);
         } else {
-            chprintf((BaseChannel*)&SD2, "COM2: %d\r\n", cnt);
+            chprintf((BaseSequentialStream*)&SD2, "COM2: %d\r\n", cnt);
         }
         cnt++;
+#endif
     }
 
     return 0;
