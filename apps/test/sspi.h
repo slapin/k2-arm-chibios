@@ -3,8 +3,6 @@
 
 #include <ch.h>
 
-extern Semaphore semSspi;
-extern uint8_t sspi_byte;
 
 // команды ??
 #define READ	0x03

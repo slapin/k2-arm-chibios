@@ -2,18 +2,44 @@
 
 #include <hal.h>
 
-SEMAPHORE_DECL(semSspi, 0);
-uint8_t sspi_byte = 0;
+// SEMAPHORE_DECL(semSspi, 0);
+
+#define BURST 100	//bytes //512
+
+static uint8_t	SPI_recv_buffer[BURST];
+static uint8_t	SPI_trans_buffer[BURST];
+
+static uint8_t *pRecv;
+static uint8_t *pTrans;
+
+static uint8_t state;
 
 /* Receive byte buffer */
 static uint8_t _shift;
 /* Receive byte counter */
 static uint8_t _shift_count;
+static int _exchange_cnt;
 
 static void extSpiNCS(EXTDriver *extp, expchannel_t channel)
 {
     (void)extp;
     (void)channel;
+    if(palReadPad(IOPORT1, PIOA_SPI_NCS)) /* Transmission complete */
+    {
+        switch(state)
+        {
+            case 1:
+                pTrans = SPI_trans_buffer;
+                _shift = *pTrans++;
+                _shift_count = 8;
+                _exchange_cnt = 0;
+                state = 2;
+                break;
+            case 2:
+                state = 0;
+                break;
+        }
+    }
 #if 0
     if(!palReadPad(IOPORT1, PIOA_SPI_NCS))
     {   /* Start SPI transfer */
@@ -39,21 +65,47 @@ static void extSpiCLK(EXTDriver *extp, expchannel_t channel)
     (void)channel;
     if(!palReadPad(IOPORT1, PIOA_SPI_NCS))
     {
-        _shift |= palReadPad(IOPORT1, PIOA_SPI_MOSI);
-        if(_shift_count == 0) /* Byte done */
+        switch(state)
         {
-            sspi_byte = _shift;
-            _shift = 0;
-            _shift_count = 7;
+            default: // Prepare receive
+                _shift = 0;
+                _shift_count = 7;
+                pRecv = SPI_recv_buffer;
+                _exchange_cnt = 0;
+                state = 1;
+            case 1: // Receive
+                _shift |= palReadPad(IOPORT1, PIOA_SPI_MOSI);
+                if(_shift_count == 0) /* Byte done */
+                {
+                    if(_exchange_cnt < BURST) *pRecv++ = _shift;
+                    _exchange_cnt++;
+                    _shift = 0;
+                    _shift_count = 7;
+                } else {
+                    _shift_count--;
+                    _shift <<= 1;
+                }
+                break;
+            case 2:
+                if(_shift & 0x80)
+                    palSetPad(IOPORT1, PIOA_SPI_MISO);
+                else
+                    palClearPad(IOPORT1, PIOA_SPI_MISO);
+                _shift <<= 1;
+                _shift_count--;
+                if(_shift_count == 0)
+                    _shift = *pTrans++;
+                    _shift_count = 8;
+                    _exchange_cnt++;
+                }
+                break;
+        }
+
+            /*
             chSysLockFromIsr();
             chSemSignalI(&semSspi);
             chSysUnlockFromIsr();
-        }
-        else
-        {
-            _shift_count--;
-            _shift <<= 1;
-        }
+            */
     }
     // if(palReadPad(IOPORT1, PIOA_SPI_MOSI))
     /*
@@ -108,8 +160,11 @@ static const EXTConfig extcfg = {
 
 void sspiInit(void)
 {
+    state = 0;
     _shift = 0;
     _shift_count = 7;
+    pRecv = NULL;
+    pTrans = NULL;
     extStart(&EXTDA, &extcfg);
 }
 
